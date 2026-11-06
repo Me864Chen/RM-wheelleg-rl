@@ -103,6 +103,12 @@
     mass="16.8775740"
     fullinertia="0.3595155 0.35249 0.45655 -0.00174358 -0.00825907 -0.00214156"/>
     <site name="imu_site" pos="0 0 0" size="0.005"/>
+    <!-- FPV: estimated midpoint of the two upper friction wheels + 0.06 m
+         along body +Z. Turret geometry is fused into base_Link_del in this model.
+         Forward is -X; camera image right is +Y and image up is +Z. -->
+    <camera name="fpv_camera" mode="fixed"
+            pos="0.00134 0.00028 0.430716"
+            xyaxes="0 1 0 0 0 1" fovy="75"/>
     <!-- <camera name="follow_cam" pos="0 0 0.45" xyaxes="0 1 0 0 0 1" fovy="55"/> -->
     <!-- <geom type="mesh" rgba="1 1 1 1" mesh="base_Link_del"/> -->
     <geom name="base_Link_del_geom" type="mesh" rgba="1 1 1 1" mesh="base_Link_del"

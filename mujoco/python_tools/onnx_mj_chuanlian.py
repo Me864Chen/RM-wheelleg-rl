@@ -12,7 +12,10 @@ import mujoco.viewer
 import numpy as np
 import onnxruntime as ort
 import torch
-from pynput import keyboard
+from queue import SimpleQueue
+
+# Only the optional legacy backend needs global desktop keyboard access.
+keyboard = None
 
 
 MUJOCO_ROOT = Path(__file__).resolve().parents[1]
@@ -48,6 +51,7 @@ requested_policy_return_name: Optional[str] = None
 requested_policy_duration_s: Optional[float] = None
 mode_keys_down = set()
 torque_enabled = True
+view_switch_requests = 0
 
 # ===== Training-aligned constants =====
 DOF_NAMES = [
@@ -128,7 +132,7 @@ SERIAL_LEG_L1 = 0.175
 SERIAL_LEG_L2 = 0.208
 SERIAL_MAP_EPS = 1e-4
 
-CMD_LIN_VEL_STEP = 2.4
+CMD_LIN_VEL_STEP = 0.1
 CMD_LIN_VEL_RAMP_RATE = 2.3
 CMD_YAW_VEL_STEP = 4.0
 CMD_YAW_VEL_RAMP_RATE = 4.0
@@ -163,9 +167,9 @@ def _refresh_cmd_from_keys():
     key_4 = "4" in pressed_keys
 
     if key_1 and not key_2:
-        cmd_lin_vel_target = CMD_LIN_VEL_STEP
+        cmd_lin_vel_target -= CMD_LIN_VEL_STEP
     elif key_2 and not key_1:
-        cmd_lin_vel_target = -CMD_LIN_VEL_STEP
+        cmd_lin_vel_target += CMD_LIN_VEL_STEP
     else:
         cmd_lin_vel_target = 0.0
         cmd_lin_vel = 0.0
@@ -211,7 +215,7 @@ def _key_name(key) -> Optional[str]:
 
 
 def on_press(key):
-    global running, cmd_height, torque_enabled
+    global running, cmd_height, torque_enabled, view_switch_requests
     global requested_policy_name, requested_policy_return_name, requested_policy_duration_s
     if key == keyboard.Key.esc:
         running = False
@@ -230,6 +234,11 @@ def on_press(key):
     if k is None:
         return
 
+    if k == "0":
+        if "camera_toggle" not in mode_keys_down:
+            mode_keys_down.add("camera_toggle")
+            view_switch_requests += 1
+        return
     if k in ("1", "2", "3", "4"):
         pressed_keys.add(k)
         _refresh_cmd_from_keys()
@@ -258,9 +267,112 @@ def on_release(key):
     k = _key_name(key)
     if k is None:
         return
+    if k == "0":
+        mode_keys_down.discard("camera_toggle")
+        return
     if k in ("1", "2", "3", "4"):
         pressed_keys.discard(k)
         _refresh_cmd_from_keys()
+
+
+
+def on_viewer_key(keycode: int) -> None:
+    """Window-local commands. Movement stays active until 7; no key-up API."""
+    global running, cmd_height, torque_enabled, view_switch_requests
+    global requested_policy_name, requested_policy_return_name, requested_policy_duration_s
+    if keycode == 256:  # GLFW_KEY_ESCAPE
+        running = False
+        return
+    if not 0 <= keycode < 128:
+        return
+    key = chr(keycode).lower()
+    if key == "0":
+        view_switch_requests += 1
+    elif key in ("1", "2", "3", "4"):
+        # Preserve the other axis, but replace an opposing command on this axis.
+        pressed_keys.difference_update(("1", "2") if key in ("1", "2") else ("3", "4"))
+        pressed_keys.add(key)
+        _refresh_cmd_from_keys()
+        print(f"[INPUT] {key.upper()}: vx_target={cmd_lin_vel_target:.2f}, "
+              f"yaw_target={cmd_yaw_vel_target:.2f}; 7 stops", flush=True)
+    elif key == "7":
+        pressed_keys.clear()
+        _refresh_cmd_from_keys()
+        print("[INPUT] 7: stop movement", flush=True)
+    elif key == " ":
+        requested_policy_name = JUMP_POLICY_NAME
+        requested_policy_return_name = RECOVER_POLICY_NAME if jump_policy_duration_s > 0.0 else None
+        requested_policy_duration_s = jump_policy_duration_s if jump_policy_duration_s > 0.0 else None
+    elif key in ("5", "6"):
+        cmd_height = _clip_height(HEIGHT_MAX if key == "5" else HEIGHT_MIN)
+        print(f"[INPUT] height={cmd_height:.2f}", flush=True)
+    elif key == "9":
+        requested_policy_name = RECOVER_POLICY_NAME
+        requested_policy_return_name = None
+        requested_policy_duration_s = None
+        cmd_height = _clip_height(DEFAULT_CMD_HEIGHT)
+        print("[POLICY] request -> plane", flush=True)
+    elif key == "b":
+        torque_enabled = not torque_enabled
+        print(f"[TORQUE] {'ON' if torque_enabled else 'OFF'}", flush=True)
+
+
+
+class CameraViewController:
+    """Toggle a body-mounted FPV camera and a saved third-person view."""
+
+    def __init__(self, model, base_body_id):
+        self.camera_id = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_CAMERA, "fpv_camera")
+        self.base_body_id = base_body_id
+        self.first_person = False
+        self.third_person = None
+        self.geom0_visible = None
+
+    def initialize(self, viewer):
+        with viewer.lock():
+            viewer.cam.type = mujoco.mjtCamera.mjCAMERA_TRACKING
+            viewer.cam.trackbodyid = self.base_body_id
+            viewer.cam.fixedcamid = -1
+            self.geom0_visible = int(viewer.opt.geomgroup[0])
+        print("[CAMERA] third person; press 0 to toggle FPV", flush=True)
+
+    def toggle(self, viewer):
+        if self.camera_id < 0:
+            print("[CAMERA] XML has no camera named fpv_camera; staying in third person", flush=True)
+            return
+        with viewer.lock():
+            if not self.first_person:
+                cam = viewer.cam
+                self.third_person = {
+                    "type": cam.type, "trackbodyid": cam.trackbodyid,
+                    "fixedcamid": cam.fixedcamid, "lookat": cam.lookat.copy(),
+                    "distance": cam.distance, "azimuth": cam.azimuth,
+                    "elevation": cam.elevation,
+                }
+                cam.type = mujoco.mjtCamera.mjCAMERA_FIXED
+                cam.fixedcamid = self.camera_id
+                self.first_person = True
+            else:
+                for name, value in self.third_person.items():
+                    if name == "lookat":
+                        viewer.cam.lookat[:] = value
+                    else:
+                        setattr(viewer.cam, name, value)
+                self.first_person = False
+            viewer.opt.geomgroup[0] = self.geom0_visible
+        label = "first person" if self.first_person else "third person"
+        print(f"[CAMERA] {label}", flush=True)
+
+    def sync(self, viewer):
+        viewer.sync()
+        # Native key 0 also toggles Geom 0. Preserve its initial visibility so
+        # switching the camera cannot hide the robot or the floor.
+        with viewer.lock():
+            changed = int(viewer.opt.geomgroup[0]) != self.geom0_visible
+            if changed:
+                viewer.opt.geomgroup[0] = self.geom0_visible
+        if changed:
+            viewer.sync()
 
 
 def mj_sensor_id(m: mujoco.MjModel, name: str) -> int:
@@ -430,12 +542,15 @@ def load_onnx_session(onnx_path: str, providers: list[str]) -> ort.InferenceSess
 
 
 def main():
-    global cmd_height, jump_policy_duration_s
+    global cmd_height, jump_policy_duration_s, keyboard
     parser = argparse.ArgumentParser()
     parser.add_argument("--xml", type=str, default=RUNTIME_PRESETS[DEFAULT_POLICY_NAME]["xml_path"])
     parser.add_argument("--onnx", type=str, default=RUNTIME_PRESETS[DEFAULT_POLICY_NAME]["onnx_path"])
     parser.add_argument("--device", type=str, default="cuda" if torch.cuda.is_available() else "cpu")
     parser.add_argument("--policy_dt", type=float, default=0.01)
+    parser.add_argument("--keyboard-backend", choices=("viewer", "pynput"), default="viewer",
+                        help="viewer: click window, 1/2/3/4 commands persist until 7; pynput: hold/release")
+    parser.add_argument("--debug-input", action="store_true", help="Print command state twice per second")
     parser.add_argument("--jump_onnx", type=str, default=JUMP_XIAOFUDU_ONNX_PATH)
     parser.add_argument("--jump_policy_duration", type=float, default=JUMP_POLICY_DURATION_S)
     parser.add_argument("--base_body_name", type=str, default="base_Link_del")
@@ -707,23 +822,52 @@ def main():
         if bool(args.tag):
             cmd_height = _clip_height(float(args.jump_after_height))
 
-    listener = keyboard.Listener(on_press=on_press, on_release=on_release)
-    listener.start()
+    listener = None
+    input_events = SimpleQueue()
+    viewer_key_callback = None
+    if args.keyboard_backend == "pynput":
+        from pynput import keyboard as pynput_keyboard
+        keyboard = pynput_keyboard
+        listener = keyboard.Listener(on_press=on_press, on_release=on_release)
+        listener.start()
+        print("[INPUT] pynput: hold 1/2/3/4 to move, release to stop; 0 toggles camera", flush=True)
+    else:
+        # Queue viewer-thread events; mutate command state in the physics thread.
+        viewer_key_callback = input_events.put
+        print("[INPUT] viewer: click simulation window; 1/2 move, 3/4 turn, "
+              "7 stops; 0 toggles first/third-person view. Commands persist after release. Esc exits.", flush=True)
 
     i = 0
-    with mujoco.viewer.launch_passive(m, d) as viewer:
+    last_input_log = 0.0
+    with mujoco.viewer.launch_passive(m, d, key_callback=viewer_key_callback) as viewer:
 
-        initialize_side_camera(viewer)
+        with viewer.lock():
+            initialize_side_camera(viewer)
+        camera_views = CameraViewController(m, base_bid)
+        camera_views.initialize(viewer)
+        handled_view_switches = view_switch_requests
 
         while viewer.is_running() and running:
             i = i + 1
+            while not input_events.empty():
+                on_viewer_key(input_events.get_nowait())
+            if not running:
+                break
+            pending_view_switches = view_switch_requests
+            if (pending_view_switches - handled_view_switches) % 2:
+                camera_views.toggle(viewer)
+            handled_view_switches = pending_view_switches
             handle_policy_requests()
             handle_temporary_policy_return()
             _update_cmd_lin_vel(eff_policy_dt)
             _update_cmd_yaw_vel(eff_policy_dt)
 
             _, base_ang, projected_g, q, q_obs, qd = build_state()
-            print(base_ang)
+            if args.debug_input and time.monotonic() - last_input_log >= 0.5:
+                last_input_log = time.monotonic()
+                print(f"[CONTROL] keys={pressed_keys.copy()} "
+                      f"target_vx={cmd_lin_vel_target:.2f} vx={cmd_lin_vel:.2f} "
+                      f"yaw={cmd_yaw_vel:.2f} torque={torque_enabled}", flush=True)
 
             obs, obs_hist = build_obs(base_ang, projected_g, q_obs, qd)
             if history is None:
@@ -754,12 +898,10 @@ def main():
                 mujoco.mj_step(m, d)
                 if step_idx < steps_per_policy - 1:
                     _, _, _, q_step, _, qd_step = build_state()
-            viewer.sync()
+            camera_views.sync(viewer)
 
-    try:
+    if listener is not None:
         listener.stop()
-    except Exception:
-        pass
 
 
 if __name__ == "__main__":
