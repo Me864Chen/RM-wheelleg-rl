@@ -138,6 +138,10 @@ CMD_YAW_VEL_STEP = 4.0
 CMD_YAW_VEL_RAMP_RATE = 4.0
 CMD_HEIGHT_STEP = 0.01
 
+# Human input acceleration, per second of holding the key (not key repeat rate).
+CMD_LIN_HOLD_ACCEL = 0.5  # m/s^2
+CMD_YAW_HOLD_ACCEL = 1.0  # rad/s^2
+
 LIN_VEL_MIN = -2.8
 LIN_VEL_MAX = 2.8
 YAW_VEL_MIN = -6.0
@@ -159,28 +163,51 @@ def parse_bool_flag(value: str | None) -> bool:
     return value.lower() in ("1", "true", "yes", "on")
 
 
-def _refresh_cmd_from_keys():
-    global cmd_lin_vel, cmd_lin_vel_target, cmd_yaw_vel, cmd_yaw_vel_target
-    key_1 = "1" in pressed_keys
-    key_2 = "2" in pressed_keys
-    key_3 = "3" in pressed_keys
-    key_4 = "4" in pressed_keys
-
-    if key_1 and not key_2:
-        cmd_lin_vel_target -= CMD_LIN_VEL_STEP
-    elif key_2 and not key_1:
-        cmd_lin_vel_target += CMD_LIN_VEL_STEP
+def _refresh_cmd_from_keys(dt: float = 0.0):
+    """Accumulate each held axis with elapsed time; release resets its target."""
+    global cmd_lin_vel_target, cmd_yaw_vel_target
+    dt = max(0.0, float(dt))
+    linear_direction = int("2" in pressed_keys) - int("1" in pressed_keys)
+    yaw_direction = int("3" in pressed_keys) - int("4" in pressed_keys)
+    if linear_direction:
+        cmd_lin_vel_target = float(np.clip(
+            cmd_lin_vel_target + linear_direction * CMD_LIN_HOLD_ACCEL * dt,
+            LIN_VEL_MIN, LIN_VEL_MAX,
+        ))
     else:
         cmd_lin_vel_target = 0.0
-        cmd_lin_vel = 0.0
-
-    if key_3 and not key_4:
-        cmd_yaw_vel_target = CMD_YAW_VEL_STEP
-    elif key_4 and not key_3:
-        cmd_yaw_vel_target = -CMD_YAW_VEL_STEP
+    if yaw_direction:
+        cmd_yaw_vel_target = float(np.clip(
+            cmd_yaw_vel_target + yaw_direction * CMD_YAW_HOLD_ACCEL * dt,
+            YAW_VEL_MIN, YAW_VEL_MAX,
+        ))
     else:
         cmd_yaw_vel_target = 0.0
-        cmd_yaw_vel = 0.0
+
+
+def stop_movement():
+    global cmd_lin_vel, cmd_lin_vel_target, cmd_yaw_vel, cmd_yaw_vel_target
+    pressed_keys.clear()
+    cmd_lin_vel = cmd_lin_vel_target = 0.0
+    cmd_yaw_vel = cmd_yaw_vel_target = 0.0
+
+
+def on_glfw_key(keycode: int, action: int):
+    """Consume genuine GLFW press/release events in the simulation thread."""
+    if keycode == -1:  # focus lost; never retain stale held keys
+        stop_movement()
+        mode_keys_down.clear()
+        return
+    if 48 <= keycode <= 57 and chr(keycode) in ("1", "2", "3", "4"):
+        key = chr(keycode)
+        if action == 1:
+            pressed_keys.add(key)
+        elif action == 0:
+            pressed_keys.discard(key)
+        _refresh_cmd_from_keys()
+        return
+    if action == 1:
+        on_viewer_key(keycode)
 
 
 def _update_cmd_lin_vel(dt: float):
@@ -292,12 +319,11 @@ def on_viewer_key(keycode: int) -> None:
         # Preserve the other axis, but replace an opposing command on this axis.
         pressed_keys.difference_update(("1", "2") if key in ("1", "2") else ("3", "4"))
         pressed_keys.add(key)
-        _refresh_cmd_from_keys()
+        _refresh_cmd_from_keys(0.2)
         print(f"[INPUT] {key.upper()}: vx_target={cmd_lin_vel_target:.2f}, "
               f"yaw_target={cmd_yaw_vel_target:.2f}; 7 stops", flush=True)
     elif key == "7":
-        pressed_keys.clear()
-        _refresh_cmd_from_keys()
+        stop_movement()
         print("[INPUT] 7: stop movement", flush=True)
     elif key == " ":
         requested_policy_name = JUMP_POLICY_NAME
@@ -548,8 +574,8 @@ def main():
     parser.add_argument("--onnx", type=str, default=RUNTIME_PRESETS[DEFAULT_POLICY_NAME]["onnx_path"])
     parser.add_argument("--device", type=str, default="cuda" if torch.cuda.is_available() else "cpu")
     parser.add_argument("--policy_dt", type=float, default=0.01)
-    parser.add_argument("--keyboard-backend", choices=("viewer", "pynput"), default="viewer",
-                        help="viewer: click window, 1/2/3/4 commands persist until 7; pynput: hold/release")
+    parser.add_argument("--keyboard-backend", choices=("glfw", "viewer", "pynput"), default="glfw",
+                        help="glfw: hold/release window (default); viewer: legacy latched native panels; pynput: native panels with global hold/release")
     parser.add_argument("--debug-input", action="store_true", help="Print command state twice per second")
     parser.add_argument("--jump_onnx", type=str, default=JUMP_XIAOFUDU_ONNX_PATH)
     parser.add_argument("--jump_policy_duration", type=float, default=JUMP_POLICY_DURATION_S)
@@ -831,15 +857,30 @@ def main():
         listener = keyboard.Listener(on_press=on_press, on_release=on_release)
         listener.start()
         print("[INPUT] pynput: hold 1/2/3/4 to move, release to stop; 0 toggles camera", flush=True)
-    else:
-        # Queue viewer-thread events; mutate command state in the physics thread.
+    elif args.keyboard_backend == "viewer":
+        # Legacy press-only viewer; cannot implement true key release.
         viewer_key_callback = input_events.put
         print("[INPUT] viewer: click simulation window; 1/2 move, 3/4 turn, "
               "7 stops; 0 toggles first/third-person view. Commands persist after release. Esc exits.", flush=True)
 
+    if args.keyboard_backend == "glfw":
+        from glfw_viewer import GLFWViewer
+        viewer_context = GLFWViewer(
+            m, d, key_callback=input_events.put,
+            status_callback=lambda: (
+                f"target vx={cmd_lin_vel_target:+.2f} m/s, yaw={cmd_yaw_vel_target:+.2f} rad/s | "
+                f"command vx={cmd_lin_vel:+.2f}, yaw={cmd_yaw_vel:+.2f}"
+            ),
+        )
+        print("[INPUT] GLFW: hold1/2 and3/4 to accelerate; release resets target. "
+              "Focus loss stops input. 0 toggles camera.", flush=True)
+    else:
+        viewer_context = mujoco.viewer.launch_passive(m, d, key_callback=viewer_key_callback)
+
     i = 0
     last_input_log = 0.0
-    with mujoco.viewer.launch_passive(m, d, key_callback=viewer_key_callback) as viewer:
+    last_input_time = time.monotonic()
+    with viewer_context as viewer:
 
         with viewer.lock():
             initialize_side_camera(viewer)
@@ -849,8 +890,18 @@ def main():
 
         while viewer.is_running() and running:
             i = i + 1
+            if args.keyboard_backend == "glfw":
+                viewer.poll_events()
             while not input_events.empty():
-                on_viewer_key(input_events.get_nowait())
+                event = input_events.get_nowait()
+                if args.keyboard_backend == "glfw":
+                    on_glfw_key(*event)
+                else:
+                    on_viewer_key(event)
+            now = time.monotonic()
+            if args.keyboard_backend in ("glfw", "pynput"):
+                _refresh_cmd_from_keys(min(0.1, now - last_input_time))
+            last_input_time = now
             if not running:
                 break
             pending_view_switches = view_switch_requests

@@ -1,0 +1,187 @@
+{
+  "rules": "RoboMaster 2026 RMUC V2.2.0 (20260807), chapter 4",
+  "units": "metres, degrees; dimensioned source drawings are in mm",
+  "field": {
+    "length": 28.0,
+    "width": 15.0,
+    "crossfall_deg": 1.5,
+    "wall_top_above_floor": 2.4,
+    "wall_thickness": 0.08
+  },
+  "contact": {
+    "sliding_friction": 1.0,
+    "torsional_friction": 0.005,
+    "rolling_friction": 0.0001,
+    "solref": [
+      0.01,
+      1.0
+    ]
+  },
+  "trapezoid": {
+    "deck_height": 0.2,
+    "high_deck_height": 0.4,
+    "steep_deg": 43.0,
+    "shallow_deg": 23.0,
+    "northwest_origin": [
+      -10.8,
+      7.35
+    ],
+    "outline": [
+      [
+        0,
+        0
+      ],
+      [
+        10.505,
+        0
+      ],
+      [
+        10.505,
+        -1.003
+      ],
+      [
+        6.707,
+        -1.003
+      ],
+      [
+        4.44,
+        -4.38
+      ],
+      [
+        2.361,
+        -4.38
+      ],
+      [
+        2.626,
+        -2.922
+      ],
+      [
+        0,
+        -2.922
+      ]
+    ]
+  },
+  "central": {
+    "deck_height": 0.2,
+    "entry_deg": 10.5,
+    "footprint": [
+      [
+        -3.85,
+        -1.486
+      ],
+      [
+        -3.85,
+        1.486
+      ],
+      [
+        -2.0,
+        4.9695
+      ],
+      [
+        2.9,
+        4.9695
+      ],
+      [
+        3.85,
+        1.486
+      ],
+      [
+        3.85,
+        -1.486
+      ],
+      [
+        2.0,
+        -4.9695
+      ],
+      [
+        -2.9,
+        -4.9695
+      ]
+    ],
+    "inner_height": 0.3,
+    "inner_top_length": 2.06,
+    "inner_top_width": 1.2,
+    "inner_slopes_deg": [
+      12.0,
+      14.0,
+      15.0,
+      45.0
+    ]
+  },
+  "road": {
+    "deck_height": 0.2,
+    "lane_width": 1.143,
+    "slopes_deg": [
+      11.0,
+      15.0
+    ]
+  },
+  "tunnel": {
+    "outer_width": 0.8,
+    "inner_width": 0.7,
+    "clear_height": 0.26,
+    "length": 0.65,
+    "wall_thickness": 0.05,
+    "roof_thickness": 0.04,
+    "red_center": [
+      -0.295,
+      6.34
+    ]
+  },
+  "fly": {
+    "slope_deg": 17.0,
+    "lip_height": 0.553,
+    "tail_height": 0.203,
+    "landing_height": 0.2,
+    "gap": 0.65,
+    "outer_width": 1.143,
+    "lane_width": 0.86,
+    "red_lip_center": [
+      1.3,
+      6.34
+    ]
+  },
+  "rough": {
+    "height_envelope": 0.07,
+    "base_thickness": 0.035,
+    "crest_pitch": 0.12,
+    "length": 1.62,
+    "width": 2.09,
+    "segments_per_pitch": 16,
+    "red_center": [
+      -8.2,
+      5.0
+    ]
+  },
+  "fortress": {
+    "height": 0.15,
+    "slope_deg": 20.0,
+    "red_center": [
+      -7.6,
+      0.0
+    ],
+    "outer_edge": 1.12,
+    "inner_edge": 0.653
+  },
+  "spawn": {
+    "xy": [
+      -10.8,
+      -2.1
+    ],
+    "body_height_above_floor": 0.5,
+    "yaw_deg": 180.0
+  },
+  "provenance": {
+    "field": "4.1, printed pp32,35-36: 28 x 15 m; crossfall permitted 1-2 deg; nominal choice 1.5 deg; wall 2.4 m.",
+    "trapezoid": "Fig4-27 p54: footprint segments and heights 200/400 mm, slopes 43/23 deg. Ramp access placement and high pad subdivision are approximations.",
+    "central": "Fig4-28 p55: 7700 x 9939 main footprint envelope, heights 200/300 mm and 10.5 deg entry. Unspecified corner offsets/interior subdivision approximated.",
+    "inner": "Fig4-29/30 p56: 12/14/15/45 deg and 2060 dimension. Inner width/placement is a simplified collision envelope, not the complete assembly drawing.",
+    "tunnel": "Fig4-35 p60 section A: 800 outer / 700 inner / 260 vertical clearance, local road floor as datum. Length 650 and wall/roof thickness are modelling assumptions, not fully dimensioned passage details.",
+    "fly": "Fig4-38 p62: 17 deg, 650 gap, 200 landing, 553/203 ramp levels; run derived from rise/tan(17deg). 1143 outer and 860 lane adopted from plan. Placement approximated from Fig4-5.",
+    "rough": "Fig4-37 p61: 70 mm interpreted as total panel envelope; 240 mm spans two crests, hence nominal pitch120. Base/crest split and cosine profile are assumptions pending CAD/field measurement; do not treat as exact physical surface.",
+    "fortress": "Fig4-26 p53: hex edge lengths1120/653mm, outer/inner flat-to-flat1939/1131mm and height150mm. Exact footprint/height imply about20.35deg, within stated nominal20deg and drawing tolerances.",
+    "contact": "Engineering assumptions only. PVC/wood stiffness, friction, restitution and tolerances require measured calibration; not specified by the PDF.",
+    "layout": "Centre-symmetric coarse layout from Fig4-5, exact dimensioned feature sizes preserved where identified. This is a motion-terrain prototype, not a certified full CAD reconstruction. Base stations and other non-driving props use simplified collision envelopes.",
+    "reference": "z=0 at centre ridge, base floor z=-abs(y)*tan(crossfall). Feature levels are relative to the local tilted floor, not global z. x along28m, y along15m."
+  }
+}

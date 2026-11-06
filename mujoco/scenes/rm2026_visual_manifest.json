@@ -1,0 +1,16 @@
+{
+  "scene": "rm2026_visual.xml",
+  "motion_source": "rm2026_arena.xml",
+  "motion_source_sha256": "50e892e8d9aa4eb6adb458b7eed6222c5bc15385c89f50e9722578a6cfc46607",
+  "decorative_geometries": 1571,
+  "reference": "RoboMaster 2026 V2.2.0 chapter4 figures4-1/2/5/11/20/21/24",
+  "scope": "Approximate visual reconstruction; layout inherited from motion prototype, NOT full CAD or calibrated camera dataset.",
+  "unchanged": "Original collision geometry, robot dynamics, timestep, contact parameters, cameras and policy.",
+  "approximations": [
+    "Line placement traced approximately from rulebook diagrams, not dimensioned survey.",
+    "Procedural PVC/concrete appearance, estimated colours under neutral light.",
+    "Base/resource station/overhead central energy mechanism simplified, static visual shells; no game mechanics.",
+    "Added shells, paint and fence do not collide; original simplified facility envelopes remain the collision boundaries.",
+    "2.4m collision perimeter rendered as low opaque kickboard + transparent upper screens."
+  ]
+}
