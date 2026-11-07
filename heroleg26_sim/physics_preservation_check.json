@@ -1,0 +1,10 @@
+{
+  "mujoco_version": "3.2.7",
+  "nq": 13,
+  "nv": 12,
+  "comparison": "Baseline uses full-resolution OBJ in place of base STL solely to bypass STL reader face-count limit. Same diagnostic floating root in both models.",
+  "dynamics_arrays_exactly_equal": true,
+  "collision_geometries_checked": 7,
+  "compiled_collision_mesh_vertices_exactly_equal": true,
+  "limitations": "Compilation and data-equivalence check only, not a controlled walking/jumping or Isaac Gym test."
+}

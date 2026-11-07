@@ -1,0 +1,53 @@
+{
+  "source_directory": "../heroleg26",
+  "source_urdf": "../heroleg26/urdf/2.SLDASM.urdf",
+  "urdf": "urdf/heroleg26.urdf",
+  "source_urdf_sha256": "8a48055cf0c83627c7fa8dbb7067e06bbd9ed0cad0279dd800a3306023027256",
+  "urdf_sha256": "d26c3d91012bb469d680a37af66a92e1aa9e0e6fa7101c1f7d9410d724355cd7",
+  "mesh_reference_count": 14,
+  "unique_mesh_count": 7,
+  "mesh_resources": [
+    {
+      "path": "meshes/L_Link1.STL",
+      "bytes": 2208984,
+      "sha256": "3a4ae394c6267dcb95a29619f378306d3da1408dec3e485d6e732df991ac04ed"
+    },
+    {
+      "path": "meshes/L_Link2.STL",
+      "bytes": 132684,
+      "sha256": "f42774905cfef3522502c8d4e324c16173efa37ef9f79d30a2a40a0de005b4a6"
+    },
+    {
+      "path": "meshes/L_Link3.STL",
+      "bytes": 3728084,
+      "sha256": "de432082c00bbbf1e3edd7b5c90cb6ba1efe15148ce1a845007d20de5b13a215"
+    },
+    {
+      "path": "meshes/R_Link1.STL",
+      "bytes": 2220084,
+      "sha256": "e026a490dc2b5b6047f5760d5f041d21e844b774165d5e93ad3579d457d84ccc"
+    },
+    {
+      "path": "meshes/R_Link2.STL",
+      "bytes": 133384,
+      "sha256": "5732c1d8a66e763a3e28b3439e635dd166dc0a44f63a29b6d57159bc132a747c"
+    },
+    {
+      "path": "meshes/R_Link3.STL",
+      "bytes": 3728084,
+      "sha256": "cf623eb0c69874a9c1f22b36b7b8415160ee6ac69ebfca92af5047046d9ab538"
+    },
+    {
+      "path": "meshes/base_link.STL",
+      "bytes": 104588584,
+      "sha256": "0b29790d99d328ad95cc375f8d2292e9ff71ac1f07f5a39557edfd2dcb223b5d"
+    }
+  ],
+  "validation": {
+    "references_resolve_within_directory": true,
+    "copied_meshes_identical": true,
+    "urdf_only_mesh_paths_changed": true,
+    "original_directory_unchanged": true
+  },
+  "scope": "Resource preparation only; not yet a configured or validated dynamics model."
+}

@@ -1,0 +1,42 @@
+{
+  "source": "meshes/base_link.STL",
+  "source_sha256": "0b29790d99d328ad95cc375f8d2292e9ff71ac1f07f5a39557edfd2dcb223b5d",
+  "source_faces": 2091770,
+  "source_vertices": 1042696,
+  "visual": "meshes/visual/base_link_visual.obj",
+  "visual_faces": 104588,
+  "collision": "meshes/collision/base_link_full.obj",
+  "collision_faces": 2091770,
+  "bounds_before": [
+    -0.2990000247955322,
+    0.29899999499320984,
+    -0.35499992966651917,
+    0.35499700903892517,
+    -0.0969901904463768,
+    0.5693373680114746
+  ],
+  "visual_bounds_after": [
+    -0.2990211248397827,
+    0.2990153133869171,
+    -0.354841023683548,
+    0.3546237349510193,
+    -0.09754437953233719,
+    0.5695791244506836
+  ],
+  "method": "vtkQuadricDecimation, 95% target reduction, volume preservation when available; visual only",
+  "seconds": 14.498409556999832,
+  "original_urdf_and_meshes_unchanged": true,
+  "new_urdf": "urdf/heroleg26_visual.urdf",
+  "protected_physical_data": [
+    "mass",
+    "centre of mass",
+    "inertia tensor",
+    "link and joint transforms",
+    "joint axes and types",
+    "limits",
+    "effort and velocity",
+    "full-resolution collision triangles"
+  ],
+  "visual_sha256": "e4af8b2079b2ed7cd8e16067e9ff168fae7ddd411fba3584c8ad50b13b2865b6",
+  "collision_sha256": "9de7d83834ff803f44e6412ca8938d2fcbba19b712a1ea1565a287bde64a9859"
+}
