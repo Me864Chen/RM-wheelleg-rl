@@ -45,7 +45,14 @@ class Heroleg26Cfg(WheelLeggedCfg):
             "LJ3": {"effort": 2.462823725981621, "velocity": 59.82592010097471},
         }
 
+    class sim(WheelLeggedCfg.sim):
+        # 1 kHz external PD passed the plane fixed-base server check.
+        # The 5 ms step caused sustained wheel-speed oscillation at Kd=0.2.
+        dt = 0.001
+
     class control(WheelLeggedCfg.control):
+        # Preserve the inherited 10 ms policy/action interval: 10 * 1 ms.
+        decimation = 10
         # Clamp knee targets to raw URDF limits before PD; J1 remains continuous.
         clip_position_targets = True
         # Clamp velocity targets and stop driving farther into overspeed.

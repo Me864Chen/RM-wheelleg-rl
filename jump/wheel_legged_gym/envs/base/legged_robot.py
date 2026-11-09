@@ -51,7 +51,7 @@ from wheel_legged_gym.utils.math import (
 )
 from wheel_legged_gym.utils.helpers import class_to_dict
 from wheel_legged_gym.utils.joint_mapping import resolve_joint_mapping
-from wheel_legged_gym.utils.motor_limits import apply_actuator_limits
+from wheel_legged_gym.utils.motor_limits import apply_actuator_limits, compute_pd_torques
 from wheel_legged_gym.utils.robot_kinematics import (
     SerialLegKinematics, body_frame_rotation,
 )
@@ -832,29 +832,15 @@ class LeggedRobot(BaseTask):
         pos_ref[:, self.wheel_dof_indices] = 0
         vel_ref = native_actions * self.cfg.control.vel_action_scale
         vel_ref[:, self.leg_dof_indices] = 0
-        position_target = pos_ref + self.default_dof_pos
-        if getattr(self.cfg.control, "clip_position_targets", False):
-            indices = self.position_limited_dof_indices
-            bounds = self.dof_position_target_limits[indices]
-            position_target[:, indices] = torch.maximum(
-                torch.minimum(position_target[:, indices], bounds[:, 1]), bounds[:, 0]
-            )
+        clip_position = getattr(self.cfg.control, "clip_position_targets", False)
         limit_speed = getattr(self.cfg.control, "enforce_operating_speed", False)
-        if limit_speed:
-            vel_ref = torch.clip(vel_ref, -self.dof_vel_limits, self.dof_vel_limits)
-        torques = self.p_gains * (
-            position_target - self.dof_pos
-        ) + self.d_gains * (vel_ref - self.dof_vel)
-        torques = torch.clip(
-            torques * self.torques_scale, -self.torque_limits, self.torque_limits
+        return compute_pd_torques(
+            pos_ref + self.default_dof_pos, vel_ref, self.dof_pos, self.dof_vel,
+            self.p_gains, self.d_gains, self.torque_limits, self.torques_scale,
+            velocity_limits=self.dof_vel_limits if limit_speed else None,
+            position_indices=self.position_limited_dof_indices if clip_position else None,
+            position_bounds=self.dof_position_target_limits if clip_position else None,
         )
-        if limit_speed:
-            # External forces may still cause overspeed. Preserve braking torque.
-            accelerating_overspeed = (self.dof_vel.abs() >= self.dof_vel_limits) & (
-                torques * self.dof_vel > 0.
-            )
-            torques = torch.where(accelerating_overspeed, torch.zeros_like(torques), torques)
-        return torques
 
     def _reset_dofs(self, env_ids):
         """Resets DOF position and velocities of selected environmments

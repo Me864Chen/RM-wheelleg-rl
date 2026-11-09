@@ -47,6 +47,7 @@ def load_code(branch):
     spec.loader.exec_module(motor_limits)
     namespace = {'torch': torch, 'math': math, 'np': np,
                  'apply_actuator_limits': motor_limits.apply_actuator_limits,
+                 'compute_pd_torques': motor_limits.compute_pd_torques,
                  'WHEEL_LEGGED_GYM_ROOT_DIR': str(pkg.parent),
                  'resolve_joint_mapping': helper.resolve_joint_mapping,
                  'body_frame_rotation': kinematics.body_frame_rotation,

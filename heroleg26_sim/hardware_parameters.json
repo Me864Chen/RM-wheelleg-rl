@@ -81,9 +81,10 @@
   },
   "runtime_motor_limits_applied": true,
   "remaining_calibration": [
-    "Validate actual torque-speed/current/thermal envelope, especially legs below 24 V and wheels at 22 V.",
-    "Confirm a hardware current-control interpretation before configuring C620 CAN current limits.",
-    "Validate inherited PD gains and action ranges in a single-robot dynamics test."
+    "Validate actual torque-speed/current/thermal envelope over real supply ranges.",
+    "Confirm hardware current-control interpretation before configuring C620 CAN current limits.",
+    "Validate ground contact and free-base dynamics; tune load-bearing PD gains and action ranges.",
+    "Validate jump branch separately before jump training."
   ],
   "runtime_profile_status": "Provisional 24 V continuous-output reference, not validated across actual voltage ranges.",
   "runtime_profile": {
@@ -93,5 +94,11 @@
     "wheel_operating_speed_limit_rad_s": 59.82592010097471,
     "short_term_peak_enabled": false,
     "braking_available_at_overspeed": true
+  },
+  "simulation_timing": {
+    "physics_and_pd_dt_s": 0.001,
+    "control_decimation": 10,
+    "policy_action_period_s": 0.01,
+    "validation": "plane fixed-base PD PASS in user-provided server terminal output; jump and ground/free-base dynamics not validated"
   }
 }
