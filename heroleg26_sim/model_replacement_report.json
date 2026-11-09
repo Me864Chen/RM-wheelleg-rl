@@ -1,0 +1,137 @@
+{
+  "source_directory": "/home/mcsw/下载/4.SLDASM",
+  "source_urdf": "../heroleg26/urdf/4.SLDASM.urdf",
+  "raw_source_sha256": "1ff404dee8f7ccd52445d94cd94fe90e65962bc3b1a0267163a81f56e6b63c7d",
+  "raw_urdf_matches_download": true,
+  "previous_raw_urdf_removed": true,
+  "new_raw_urdf_files": [
+    "4.SLDASM.urdf"
+  ],
+  "all_7_meshes_replaced": true,
+  "derived_obj_assets_regenerated": true,
+  "joint_definitions": {
+    "LJ1": {
+      "type": "continuous",
+      "origin": {
+        "xyz": "0 0.2064 0",
+        "rpy": "0 0 -1.5708"
+      },
+      "axis": {
+        "xyz": "-1 0 0"
+      },
+      "limit": null
+    },
+    "LJ2": {
+      "type": "revolute",
+      "origin": {
+        "xyz": "-0.0300000000000003 -0.209999999988587 0",
+        "rpy": "0 0 0"
+      },
+      "axis": {
+        "xyz": "1 0 0"
+      },
+      "limit": {
+        "lower": "-0.41538836197465",
+        "upper": "0.872664625997165",
+        "effort": "30",
+        "velocity": "1000"
+      }
+    },
+    "LJ3": {
+      "type": "continuous",
+      "origin": {
+        "xyz": "-0.0149999999999925 0 -0.249999999999998",
+        "rpy": "0 0 0"
+      },
+      "axis": {
+        "xyz": "-0.999999999999981 0 0"
+      },
+      "limit": null
+    },
+    "RJ1": {
+      "type": "continuous",
+      "origin": {
+        "xyz": "0 -0.2064 0",
+        "rpy": "0 0 -1.5708"
+      },
+      "axis": {
+        "xyz": "-1 0 0"
+      },
+      "limit": null
+    },
+    "RJ2": {
+      "type": "revolute",
+      "origin": {
+        "xyz": "0.03 -0.21 0",
+        "rpy": "0 0 0"
+      },
+      "axis": {
+        "xyz": "1 0 0"
+      },
+      "limit": {
+        "lower": "-0.41538836197465",
+        "upper": "0.872664625997165",
+        "effort": "30",
+        "velocity": "1000"
+      }
+    },
+    "RJ3": {
+      "type": "continuous",
+      "origin": {
+        "xyz": "0.015 0 -0.25",
+        "rpy": "0 0 0"
+      },
+      "axis": {
+        "xyz": "-1 0 0"
+      },
+      "limit": null
+    }
+  },
+  "total_mass_kg": 13.38048145386625,
+  "base_frame_comparison": {
+    "method": "Base-link unchanged mass and inertia tensor under horizontal -90deg frame rotation; COM translation",
+    "old_to_new_base_rotation": [
+      [
+        0.0,
+        1.0,
+        0.0
+      ],
+      [
+        -1.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        1.0
+      ]
+    ],
+    "old_to_new_base_translation_m": [
+      -7.3572531305091116e-09,
+      -1.6052181030148244e-08,
+      -0.08399999999999871
+    ],
+    "inertia_tensor_max_error_kg_m2": 2.2298135560205878e-14,
+    "forward_axis_in_new_body": [
+      1,
+      0,
+      0
+    ]
+  },
+  "inspection_pose": "The independent kinematic inspector starts at all-zero URDF angles; the training standing pose is configured separately.",
+  "nominal_base_height_m": 0.265,
+  "nominal_mesh_clearance_m": 0.00983892896129892,
+  "source_motor_values_preserved_without_hardware_recalibration": true,
+  "default_standing_pose_rad": {
+    "RJ1": -0.17453292519943295,
+    "RJ2": 0.6981317007977318,
+    "RJ3": 0.0,
+    "LJ1": -0.17453292519943295,
+    "LJ2": 0.6981317007977318,
+    "LJ3": 0.0
+  },
+  "default_standing_pose_confirmed_by_user": true,
+  "hardware_parameters_file": "hardware_parameters.json",
+  "runtime_actuator_overrides": "Both heroleg26 tasks use a provisional 24 V continuous-output profile; raw URDF effort/velocity remain unchanged. See ACTUATORS.md."
+}

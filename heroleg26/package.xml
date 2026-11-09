@@ -1,10 +1,10 @@
 <package format="2">
-  <name>2.SLDASM</name>
+  <name>4.SLDASM</name>
   <version>1.0.0</version>
   <description>
-    <p>URDF Description package for 2.SLDASM</p>
+    <p>URDF Description package for 4.SLDASM</p>
     <p>This package contains configuration data, 3D models and launch files
-for 2.SLDASM robot</p>
+for 4.SLDASM robot</p>
   </description>
   <author>TODO</author>
   <maintainer email="TODO@email.com" />

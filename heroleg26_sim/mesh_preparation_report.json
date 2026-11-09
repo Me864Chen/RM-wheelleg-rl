@@ -1,42 +1,33 @@
 {
   "source": "meshes/base_link.STL",
-  "source_sha256": "0b29790d99d328ad95cc375f8d2292e9ff71ac1f07f5a39557edfd2dcb223b5d",
+  "source_sha256": "d953f68a2b450a56676ca3c9b8fe2056b07481953dcf53887395514e8ba96315",
   "source_faces": 2091770,
-  "source_vertices": 1042696,
+  "source_vertices": 1041022,
   "visual": "meshes/visual/base_link_visual.obj",
   "visual_faces": 104588,
   "collision": "meshes/collision/base_link_full.obj",
   "collision_faces": 2091770,
   "bounds_before": [
-    -0.2990000247955322,
-    0.29899999499320984,
     -0.35499992966651917,
     0.35499700903892517,
-    -0.0969901904463768,
-    0.5693373680114746
+    -0.2990000247955322,
+    0.29899999499320984,
+    -0.18099018931388855,
+    0.48533740639686584
   ],
   "visual_bounds_after": [
-    -0.2990211248397827,
-    0.2990153133869171,
-    -0.354841023683548,
-    0.3546237349510193,
-    -0.09754437953233719,
-    0.5695791244506836
+    -0.3552141487598419,
+    0.3554045259952545,
+    -0.2990153431892395,
+    0.2990210950374603,
+    -0.18132621049880981,
+    0.48557910323143005
   ],
-  "method": "vtkQuadricDecimation, 95% target reduction, volume preservation when available; visual only",
-  "seconds": 14.498409556999832,
-  "original_urdf_and_meshes_unchanged": true,
+  "method": "vtkQuadricDecimation, 95% target reduction, volume preservation; visual only",
+  "seconds": 18.761181329000465,
   "new_urdf": "urdf/heroleg26_visual.urdf",
-  "protected_physical_data": [
-    "mass",
-    "centre of mass",
-    "inertia tensor",
-    "link and joint transforms",
-    "joint axes and types",
-    "limits",
-    "effort and velocity",
-    "full-resolution collision triangles"
-  ],
-  "visual_sha256": "e4af8b2079b2ed7cd8e16067e9ff168fae7ddd411fba3584c8ad50b13b2865b6",
-  "collision_sha256": "9de7d83834ff803f44e6412ca8938d2fcbba19b712a1ea1565a287bde64a9859"
+  "source_urdf_and_meshes_unchanged": true,
+  "non_mesh_xml_identical_to_new_source": true,
+  "visual_sha256": "77dcb83a84900f432b357c95e96ff4e995328dee4c5b45223522e32972969cc0",
+  "collision_sha256": "e2ef88712c99ba303a30e41d5badf87a7abaffb42aa64e374cb0fb0477a8195d"
 }

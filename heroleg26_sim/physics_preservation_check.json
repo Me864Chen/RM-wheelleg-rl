@@ -1,10 +1,29 @@
 {
+  "source_export": "4.SLDASM",
+  "source_urdf_sha256": "64e42e29caf7d7cfa94d8f63563342f517c5cd097334103ccf8358a01c853b1b",
   "mujoco_version": "3.2.7",
   "nq": 13,
   "nv": 12,
-  "comparison": "Baseline uses full-resolution OBJ in place of base STL solely to bypass STL reader face-count limit. Same diagnostic floating root in both models.",
+  "comparison": "Both use the new CAD export. Full-resolution OBJ replaces only the oversized base STL in the temporary baseline; simplified visual base in the inspection variant.",
   "dynamics_arrays_exactly_equal": true,
+  "arrays_checked": [
+    "body_mass",
+    "body_inertia",
+    "body_ipos",
+    "body_iquat",
+    "body_pos",
+    "body_quat",
+    "jnt_pos",
+    "jnt_axis",
+    "jnt_type",
+    "jnt_range",
+    "jnt_limited",
+    "dof_armature",
+    "dof_damping",
+    "dof_frictionloss"
+  ],
   "collision_geometries_checked": 7,
   "compiled_collision_mesh_vertices_exactly_equal": true,
-  "limitations": "Compilation and data-equivalence check only, not a controlled walking/jumping or Isaac Gym test."
+  "total_mass_kg": 13.38048145386625,
+  "limitations": "Static compilation/geometry checks; no Isaac Gym dynamics or motor calibration."
 }

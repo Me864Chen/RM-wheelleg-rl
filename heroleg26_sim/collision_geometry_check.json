@@ -1,5 +1,9 @@
 {
-  "triangles_checked": 2091770,
+  "source_export": "4.SLDASM",
+  "meshes_checked": 7,
+  "triangles_checked": 2337192,
   "float32_vertices_exactly_equal": true,
-  "max_obj_decimal_roundtrip_error_m": 0
+  "all_obj_triangle_indices_checked": true,
+  "method": "Existing Isaac preparation verifies every STL triangle against round-tripped OBJ vertices and indices.",
+  "source_sha256": "1ff404dee8f7ccd52445d94cd94fe90e65962bc3b1a0267163a81f56e6b63c7d"
 }

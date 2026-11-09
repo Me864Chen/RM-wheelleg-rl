@@ -1,53 +1,62 @@
 {
   "source_directory": "../heroleg26",
-  "source_urdf": "../heroleg26/urdf/2.SLDASM.urdf",
+  "source_urdf": "../heroleg26/urdf/4.SLDASM.urdf",
+  "imported_from": "/home/mcsw/下载/4.SLDASM",
+  "robot_name": "4.SLDASM",
   "urdf": "urdf/heroleg26.urdf",
-  "source_urdf_sha256": "8a48055cf0c83627c7fa8dbb7067e06bbd9ed0cad0279dd800a3306023027256",
-  "urdf_sha256": "d26c3d91012bb469d680a37af66a92e1aa9e0e6fa7101c1f7d9410d724355cd7",
+  "source_urdf_sha256": "1ff404dee8f7ccd52445d94cd94fe90e65962bc3b1a0267163a81f56e6b63c7d",
+  "urdf_sha256": "64e42e29caf7d7cfa94d8f63563342f517c5cd097334103ccf8358a01c853b1b",
   "mesh_reference_count": 14,
   "unique_mesh_count": 7,
   "mesh_resources": [
     {
       "path": "meshes/L_Link1.STL",
-      "bytes": 2208984,
-      "sha256": "3a4ae394c6267dcb95a29619f378306d3da1408dec3e485d6e732df991ac04ed"
+      "bytes": 2230284,
+      "sha256": "e236db7bac47420ecdd32cd492882b95f9829f357289daaebec62c31eaed28c0",
+      "triangles": 44604
     },
     {
       "path": "meshes/L_Link2.STL",
-      "bytes": 132684,
-      "sha256": "f42774905cfef3522502c8d4e324c16173efa37ef9f79d30a2a40a0de005b4a6"
+      "bytes": 171484,
+      "sha256": "96af15e57235510bc6081c21a36fb2084f2baf6dcf1e65f91c87f49164a365df",
+      "triangles": 3428
     },
     {
       "path": "meshes/L_Link3.STL",
       "bytes": 3728084,
-      "sha256": "de432082c00bbbf1e3edd7b5c90cb6ba1efe15148ce1a845007d20de5b13a215"
+      "sha256": "fe9e4c3b461023db8075f7522012596c942a41b1ebcd932f43f95330704a12ce",
+      "triangles": 74560
     },
     {
       "path": "meshes/R_Link1.STL",
-      "bytes": 2220084,
-      "sha256": "e026a490dc2b5b6047f5760d5f041d21e844b774165d5e93ad3579d457d84ccc"
+      "bytes": 2241484,
+      "sha256": "16e758a70ff5cf9723f4e9c6606af2fd153c4ad1b6f4b62e382df0a2be188adf",
+      "triangles": 44828
     },
     {
       "path": "meshes/R_Link2.STL",
-      "bytes": 133384,
-      "sha256": "5732c1d8a66e763a3e28b3439e635dd166dc0a44f63a29b6d57159bc132a747c"
+      "bytes": 172184,
+      "sha256": "31c1d64bdd8f4a33c3148be46819bada4fad44391d60320d86157616037f595a",
+      "triangles": 3442
     },
     {
       "path": "meshes/R_Link3.STL",
       "bytes": 3728084,
-      "sha256": "cf623eb0c69874a9c1f22b36b7b8415160ee6ac69ebfca92af5047046d9ab538"
+      "sha256": "1bcc7208824a6c379d1e703d1794543cd74ed15b94625d15b344351c5a33e6bf",
+      "triangles": 74560
     },
     {
       "path": "meshes/base_link.STL",
       "bytes": 104588584,
-      "sha256": "0b29790d99d328ad95cc375f8d2292e9ff71ac1f07f5a39557edfd2dcb223b5d"
+      "sha256": "d953f68a2b450a56676ca3c9b8fe2056b07481953dcf53887395514e8ba96315",
+      "triangles": 2091770
     }
   ],
   "validation": {
     "references_resolve_within_directory": true,
     "copied_meshes_identical": true,
     "urdf_only_mesh_paths_changed": true,
-    "original_directory_unchanged": true
+    "download_source_unchanged": true
   },
-  "scope": "Resource preparation only; not yet a configured or validated dynamics model."
+  "scope": "New CAD export replaces the former 2.SLDASM export. Physical data come from the new source unchanged."
 }

@@ -31,8 +31,8 @@ Click the MuJoCo window before using keys:
   Esc        Quit
 Mouse: use native MuJoCo camera controls; right sidebar Joint sliders also work.
 The red selected arrow denotes POSITIVE rotation axis (right-hand rule).
-Joint roles are provisional labels; confirm against CAD / real hardware.
-No motor torque, velocity, or mechanical-angle limits are inferred here.
+Current model: 4.SLDASM, +X forward / +Z up; all-zero inspection pose.
+Source revolute angle limits are honored. No motor limits are inferred here.
 '''
 
 

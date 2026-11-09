@@ -50,6 +50,11 @@ from wheel_legged_gym.utils.math import (
     torch_rand_sqrt_float,
 )
 from wheel_legged_gym.utils.helpers import class_to_dict
+from wheel_legged_gym.utils.joint_mapping import resolve_joint_mapping
+from wheel_legged_gym.utils.motor_limits import apply_actuator_limits
+from wheel_legged_gym.utils.robot_kinematics import (
+    SerialLegKinematics, body_frame_rotation,
+)
 from .legged_robot_config import LeggedRobotCfg
 
 
@@ -158,35 +163,18 @@ class LeggedRobot(BaseTask):
         # prepare quantities
         self.base_quat[:] = self.root_states[:, 3:7]
         self.base_lin_vel = (self.base_position - self.last_base_position) / self.dt
-        self.base_lin_vel[:] = quat_rotate_inverse(self.base_quat, self.base_lin_vel)
-        self.base_ang_vel[:] = quat_rotate_inverse(
+        self.base_lin_vel[:] = self._body_to_policy(
+            quat_rotate_inverse(self.base_quat, self.base_lin_vel)
+        )
+        self.base_ang_vel[:] = self._body_to_policy(quat_rotate_inverse(
             self.base_quat, self.root_states[:, 10:13]
-        )
-        self.projected_gravity[:] = quat_rotate_inverse(
+        ))
+        self.projected_gravity[:] = self._body_to_policy(quat_rotate_inverse(
             self.base_quat, self.gravity_vec
-        )
+        ))
         self.dof_acc = (self.last_dof_vel - self.dof_vel) / self.dt
 
-        theta1 = torch.cat(
-            (self.dof_pos[:, 0].unsqueeze(1), -self.dof_pos[:, 3].unsqueeze(1)), dim=1
-        )
-        theta2 = torch.cat(
-            (
-                (self.dof_pos[:, 1] + self.pi / 2).unsqueeze(1),
-                (-self.dof_pos[:, 4] + self.pi / 2).unsqueeze(1),
-            ),
-            dim=1,
-        )
-        end_x = (
-            self.cfg.asset.offset
-            + self.cfg.asset.l1 * torch.cos(theta1)
-            + self.cfg.asset.l2 * torch.cos(theta1 + theta2)
-        )
-        end_y = self.cfg.asset.l1 * torch.sin(theta1) + self.cfg.asset.l2 * torch.sin(
-            theta1 + theta2
-        )
-        self.L0 = torch.sqrt(end_x**2 + end_y**2)
-        self.theta0 = torch.arctan2(end_y, end_x) - self.pi / 2
+        self._update_leg_kinematics()
 
         self._post_physics_step_callback()
         # print(self.base_height)
@@ -347,11 +335,11 @@ class LeggedRobot(BaseTask):
                 self.projected_gravity,
                 self.commands[:, :3] * self.commands_scale,
                 (
-                    self.dof_pos[:, [0, 1, 3, 4]]
-                    - self.default_dof_pos[:, [0, 1, 3, 4]]
+                    self.dof_pos[:, self.leg_dof_indices]
+                    - self.default_dof_pos[:, self.leg_dof_indices]
                 )
                 * self.obs_scales.dof_pos,
-                self.dof_vel * self.obs_scales.dof_vel,
+                self.dof_vel[:, self.policy_dof_indices] * self.obs_scales.dof_vel,
                 self.actions,
             ),
             dim=-1,
@@ -377,12 +365,14 @@ class LeggedRobot(BaseTask):
                     self.obs_buf,
                     self.last_actions[:, :, 0],
                     self.last_actions[:, :, 1],
-                    self.dof_acc * self.obs_scales.dof_acc,
+                    self.dof_acc[:, self.policy_dof_indices] * self.obs_scales.dof_acc,
                     heights,
-                    self.torques * self.obs_scales.torque,
+                    self.torques[:, self.policy_dof_indices] * self.obs_scales.torque,
                     (self.base_mass - self.base_mass.mean()).view(self.num_envs, 1),
-                    self.base_com,
-                    self.default_dof_pos - self.raw_default_dof_pos,
+                    self._body_to_policy(self.base_com),
+                    (self.default_dof_pos - self.raw_default_dof_pos)[
+                        :, self.policy_dof_indices
+                    ],
                     self.friction_coef.view(self.num_envs, 1),
                     self.restitution_coef.view(self.num_envs, 1),
                 ),
@@ -525,7 +515,17 @@ class LeggedRobot(BaseTask):
         #         )
         # return props
     def _process_dof_props(self, props, env_id):
+        # Override output-side motor capabilities without rewriting CAD assets.
+        props = apply_actuator_limits(
+            props, self.dof_config_names,
+            getattr(self.cfg.asset, "actuator_limits", None),
+        )
         if env_id == 0:
+            # Keep physical bounds separate from reward soft-limit margins.
+            self.dof_position_target_limits = torch.tensor(
+                np.stack((props["lower"], props["upper"]), axis=-1),
+                dtype=torch.float, device=self.device,
+            )
             self.dof_pos_limits = torch.zeros(
                 self.num_dof, 2, dtype=torch.float, device=self.device, requires_grad=False
             )
@@ -737,6 +737,98 @@ class LeggedRobot(BaseTask):
                 device=self.device,
             ).squeeze(1)
 
+    def _init_joint_mapping(self):
+        """Bind logical policy channels to the actual SDK DOF order once."""
+        policy_names = self.cfg.asset.policy_joint_names
+        if self.num_actions != len(policy_names):
+            raise ValueError("num_actions must match the six policy joint channels")
+        self.dof_config_names, indices = resolve_joint_mapping(
+            self.dof_names, policy_names, self.cfg.asset.joint_name_mapping
+        )
+        self.body_to_policy_rotation = body_frame_rotation(
+            getattr(self.cfg.asset, "body_forward_axis", [1., 0., 0.]), self.device
+        )
+        self.leg_kinematics = None
+        mode = getattr(self.cfg.asset, "leg_kinematics", "legacy")
+        if mode == "urdf_serial":
+            if list(self.dof_names) != self.dof_config_names:
+                raise ValueError("heroleg26 geometry cannot be applied to legacy joint aliases")
+            urdf = self.cfg.asset.file.format(
+                WHEEL_LEGGED_GYM_ROOT_DIR=WHEEL_LEGGED_GYM_ROOT_DIR
+            )
+            self.leg_kinematics = SerialLegKinematics(
+                urdf, policy_names, self.device,
+                forward_axis=getattr(self.cfg.asset, "body_forward_axis", [1., 0., 0.]),
+            )
+        elif mode != "legacy":
+            raise ValueError("Unknown leg_kinematics mode: " + mode)
+        self.policy_dof_indices = torch.tensor(
+            indices, device=self.device, dtype=torch.long
+        )
+        self.leg_dof_indices = self.policy_dof_indices[[0, 1, 3, 4]]
+        self.wheel_dof_indices = self.policy_dof_indices[[2, 5]]
+        # Continuous hip/wheel joints have no position-limit penalty.
+        self.position_limited_dof_indices = self.leg_dof_indices
+        if self.leg_kinematics is not None:
+            self.position_limited_dof_indices = torch.tensor(
+                [i for i in indices if self.dof_names[i]
+                 in self.leg_kinematics.position_limited_names],
+                device=self.device, dtype=torch.long,
+            )
+        self.left_hip_index, self.left_knee_index = indices[0:2]
+        self.right_hip_index, self.right_knee_index = indices[3:5]
+        print("Policy joint channels (policy -> native DOF):")
+        for channel, (name, index) in enumerate(zip(policy_names, indices)):
+            print("  {}: {} -> {} [{}]".format(channel, name, self.dof_names[index], index))
+
+    def forward_kinematics(self, theta1, theta2):
+        if self.leg_kinematics is not None:
+            return self.leg_kinematics.forward_kinematics(theta1, theta2)
+        end_x = (
+            self.cfg.asset.offset
+            + self.cfg.asset.l1 * torch.cos(theta1)
+            + self.cfg.asset.l2 * torch.cos(theta1 + theta2)
+        )
+        end_y = self.cfg.asset.l1 * torch.sin(theta1) + self.cfg.asset.l2 * torch.sin(
+            theta1 + theta2
+        )
+        L0 = torch.sqrt(end_x**2 + end_y**2)
+        theta0 = torch.arctan2(end_y, end_x) - self.pi / 2
+        return L0, theta0
+
+    def _body_to_policy(self, vectors):
+        """Native URDF body -> policy forward/left/up; keep PhysX state native."""
+        return torch.matmul(vectors, self.body_to_policy_rotation.T)
+
+    def _policy_to_body(self, vectors):
+        return torch.matmul(vectors, self.body_to_policy_rotation)
+
+    def _update_leg_kinematics(self):
+        self.theta1, self.theta2 = self._get_leg_joint_angles()
+        self.L0, self.theta0 = self.forward_kinematics(self.theta1, self.theta2)
+
+    def _get_leg_joint_angles(self):
+        """Policy leg order; select calibrated URDF or legacy angle conventions."""
+        if self.leg_kinematics is not None:
+            hip = self.dof_pos[:, [self.left_hip_index, self.right_hip_index]]
+            knee = self.dof_pos[:, [self.left_knee_index, self.right_knee_index]]
+            return self.leg_kinematics.joint_angles(hip, knee)
+        theta1 = torch.stack(
+            (
+                self.dof_pos[:, self.left_hip_index],
+                -self.dof_pos[:, self.right_hip_index],
+            ),
+            dim=1,
+        )
+        theta2 = torch.stack(
+            (
+                self.dof_pos[:, self.left_knee_index] + self.pi / 2,
+                -self.dof_pos[:, self.right_knee_index] + self.pi / 2,
+            ),
+            dim=1,
+        )
+        return theta1, theta2
+
     def _compute_torques(self, actions):
         """Compute torques from actions.
             Actions can be interpreted as position or velocity targets given to a PD controller, or directly as scaled torques.
@@ -748,19 +840,36 @@ class LeggedRobot(BaseTask):
         Returns:
             [torch.Tensor]: Torques sent to the simulation
         """
-        # pd controller
-        pos_ref = actions * self.cfg.control.pos_action_scale
-        pos_ref[:, 2] *= 0
-        pos_ref[:, 5] *= 0
-        vel_ref = actions * self.cfg.control.vel_action_scale
-        vel_ref[:, :2] *= 0
-        vel_ref[:, 3:5] *= 0
+        # Policy channels are RJ1,RJ2,RJ3,LJ1,LJ2,LJ3; PhysX tensors are native.
+        native_actions = torch.zeros_like(self.dof_pos)
+        native_actions[:, self.policy_dof_indices] = actions
+        pos_ref = native_actions * self.cfg.control.pos_action_scale
+        pos_ref[:, self.wheel_dof_indices] = 0
+        vel_ref = native_actions * self.cfg.control.vel_action_scale
+        vel_ref[:, self.leg_dof_indices] = 0
+        position_target = pos_ref + self.default_dof_pos
+        if getattr(self.cfg.control, "clip_position_targets", False):
+            indices = self.position_limited_dof_indices
+            bounds = self.dof_position_target_limits[indices]
+            position_target[:, indices] = torch.maximum(
+                torch.minimum(position_target[:, indices], bounds[:, 1]), bounds[:, 0]
+            )
+        limit_speed = getattr(self.cfg.control, "enforce_operating_speed", False)
+        if limit_speed:
+            vel_ref = torch.clip(vel_ref, -self.dof_vel_limits, self.dof_vel_limits)
         torques = self.p_gains * (
-            pos_ref + self.default_dof_pos - self.dof_pos
+            position_target - self.dof_pos
         ) + self.d_gains * (vel_ref - self.dof_vel)
-        return torch.clip(
+        torques = torch.clip(
             torques * self.torques_scale, -self.torque_limits, self.torque_limits
         )
+        if limit_speed:
+            # External forces may still cause overspeed. Preserve braking torque.
+            accelerating_overspeed = (self.dof_vel.abs() >= self.dof_vel_limits) & (
+                torques * self.dof_vel > 0.
+            )
+            torques = torch.where(accelerating_overspeed, torch.zeros_like(torques), torques)
+        return torques
 
     def _reset_dofs(self, env_ids):
         """Resets DOF position and velocities of selected environmments
@@ -834,7 +943,7 @@ class LeggedRobot(BaseTask):
             -max_push_force, max_push_force, (self.num_envs, 3), device=self.device
         )
         self.rigid_body_external_forces[env_ids, 0, 0:3] = quat_rotate(
-            self.base_quat[env_ids], rigid_body_external_forces[env_ids]
+            self.base_quat[env_ids], self._policy_to_body(rigid_body_external_forces[env_ids])
         )
         self.rigid_body_external_forces[env_ids, 0, 2] *= 0.5
 
@@ -1021,9 +1130,7 @@ class LeggedRobot(BaseTask):
         self.gravity_vec = to_torch(
             get_axis_params(-1.0, self.up_axis_idx), device=self.device
         ).repeat((self.num_envs, 1))
-        self.forward_vec = to_torch([1.0, 0.0, 0.0], device=self.device).repeat(
-            (self.num_envs, 1)
-        )
+        self.forward_vec = self.body_to_policy_rotation[0].repeat(self.num_envs, 1)
         self.torques = torch.zeros(
             self.num_envs,
             self.num_actions,
@@ -1130,19 +1237,21 @@ class LeggedRobot(BaseTask):
             device=self.device,
             requires_grad=False,
         )
-        self.base_lin_vel = quat_rotate_inverse(
+        self.base_lin_vel = self._body_to_policy(quat_rotate_inverse(
             self.base_quat, self.root_states[:, 7:10]
-        )
-        self.base_ang_vel = quat_rotate_inverse(
+        ))
+        self.base_ang_vel = self._body_to_policy(quat_rotate_inverse(
             self.base_quat, self.root_states[:, 10:13]
-        )
+        ))
         self.rigid_body_external_forces = torch.zeros(
             (self.num_envs, self.num_bodies, 3), device=self.device, requires_grad=False
         )
         self.rigid_body_external_torques = torch.zeros(
             (self.num_envs, self.num_bodies, 3), device=self.device, requires_grad=False
         )
-        self.projected_gravity = quat_rotate_inverse(self.base_quat, self.gravity_vec)
+        self.projected_gravity = self._body_to_policy(
+            quat_rotate_inverse(self.base_quat, self.gravity_vec)
+        )
         self.action_delay_idx = torch.zeros(
             self.num_envs,
             dtype=torch.long,
@@ -1187,7 +1296,7 @@ class LeggedRobot(BaseTask):
             requires_grad=False,
         )
         for i in range(self.num_dofs):
-            name = self.dof_names[i]
+            name = self.dof_config_names[i]
             angle = self.cfg.init_state.default_joint_angles[name]
             self.raw_default_dof_pos[i] = angle
             self.default_dof_pos[:, i] = angle
@@ -1362,6 +1471,12 @@ class LeggedRobot(BaseTask):
         asset_path = self.cfg.asset.file.format(
             WHEEL_LEGGED_GYM_ROOT_DIR=WHEEL_LEGGED_GYM_ROOT_DIR
         )
+        if (getattr(self.cfg.asset, "leg_kinematics", "legacy") == "urdf_serial"
+                and not os.path.isfile(asset_path)):
+            raise FileNotFoundError(
+                "Missing heroleg26 OBJ asset: " + asset_path
+                + ". Prepare it with heroleg26_isaac_check/check_isaacgym.py --prepare-only --repo <repo>."
+            )
         asset_root = os.path.dirname(asset_path)
         asset_file = os.path.basename(asset_path)
 
@@ -1395,6 +1510,7 @@ class LeggedRobot(BaseTask):
         self.dof_names = self.gym.get_asset_dof_names(robot_asset)
         self.num_bodies = len(body_names)
         self.num_dofs = len(self.dof_names)
+        self._init_joint_mapping()
         feet_names = [s for s in body_names if self.cfg.asset.foot_name in s]
         penalized_contact_names = []
         for name in self.cfg.asset.penalize_contacts_on:
@@ -1463,7 +1579,8 @@ class LeggedRobot(BaseTask):
             )
             body_props = self._process_rigid_body_props(body_props, i)
             self.gym.set_actor_rigid_body_properties(
-                env_handle, actor_handle, body_props, recomputeInertia=True
+                env_handle, actor_handle, body_props,
+                recomputeInertia=getattr(self.cfg.asset, "recompute_inertia", True)
             )
             self.envs.append(env_handle)
             self.actor_handles.append(actor_handle)
@@ -1649,7 +1766,7 @@ class LeggedRobot(BaseTask):
         x = torch.tensor(
             self.cfg.terrain.measured_points_x, device=self.device, requires_grad=False
         )
-        grid_x, grid_y = torch.meshgrid(x, y)
+        grid_x, grid_y = torch.meshgrid(x, y, indexing="ij")
 
         self.num_height_points = grid_x.numel()
         points = torch.zeros(
@@ -1661,7 +1778,7 @@ class LeggedRobot(BaseTask):
         )
         points[:, :, 0] = grid_x.flatten()
         points[:, :, 1] = grid_y.flatten()
-        return points
+        return self._policy_to_body(points)
 
     def _get_heights(self, env_ids=None):
         """Samples heights of the terrain at required points around each robot.
@@ -1751,9 +1868,7 @@ class LeggedRobot(BaseTask):
 
     def _reward_dof_vel(self):
         # Penalize dof velocities
-        return torch.sum(torch.square(self.dof_vel[:, :2]), dim=1) + torch.sum(
-            torch.square(self.dof_vel[:, 3:5]), dim=1
-        )
+        return torch.sum(torch.square(self.dof_vel[:, self.leg_dof_indices]), dim=1)
 
     def _reward_dof_acc(self):
         # Penalize dof accelerations
@@ -1800,18 +1915,10 @@ class LeggedRobot(BaseTask):
 
     def _reward_dof_pos_limits(self):
         # Penalize dof positions too close to the limit
-        out_of_limits = -(self.dof_pos[:, :2] - self.dof_pos_limits[:2, 0]).clip(
-            max=0.0
-        )  # lower limit
-        out_of_limits += (self.dof_pos[:, :2] - self.dof_pos_limits[:2, 1]).clip(
-            min=0.0
-        )
-        out_of_limits += -(self.dof_pos[:, 3:5] - self.dof_pos_limits[3:5, 0]).clip(
-            max=0.0
-        )  # lower limit
-        out_of_limits += (self.dof_pos[:, 3:5] - self.dof_pos_limits[3:5, 1]).clip(
-            min=0.0
-        )
+        positions = self.dof_pos[:, self.position_limited_dof_indices]
+        limits = self.dof_pos_limits[self.position_limited_dof_indices]
+        out_of_limits = -(positions - limits[:, 0]).clip(max=0.0)
+        out_of_limits += (positions - limits[:, 1]).clip(min=0.0)
         return torch.sum(out_of_limits, dim=1)
 
     def _reward_dof_vel_limits(self):

@@ -1,59 +1,42 @@
-# heroleg26 仿真资源副本
+# heroleg26 当前仿真模型：4.SLDASM
 
-此目录从 `../heroleg26` 复制，用于后续仿真适配。原始导出目录未修改。
+本目录现使用用户重新导出的 `4.SLDASM` 模型。原始副本位于 `../heroleg26/urdf/4.SLDASM.urdf`，网格位于 `../heroleg26/meshes/`。项目中旧的原始 URDF、CSV、网格和导出元数据已替换；下载目录中的源文件不修改。
 
-```text
-heroleg26_sim/
-├── urdf/heroleg26.urdf
-├── meshes/                 # 7 个独立复制的 STL 文件
-├── resource_manifest.json # 路径检查结果、文件大小与 SHA-256
-└── README.md
+## 当前文件
+
+- `urdf/heroleg26.urdf`：新导出的完整模型，将 14 处 `package://4.SLDASM/meshes/` 引用改为 `../meshes/`，其余 XML 数据保留。
+- `urdf/heroleg26_visual.urdf`：MuJoCo 检查版；主车体外观使用简化 OBJ，碰撞使用新导出的全分辨率 OBJ，其余连杆沿用新 STL。
+- `meshes/*.STL`：新导出的 7 个原始网格副本。
+- `meshes/visual/base_link_visual.obj`：主车体仅外观简化，2,091,770 面降至 104,588 面。
+- `meshes/collision/base_link_full.obj`：新主车体的全部 2,091,770 个三角面，无碰撞简化。
+- `../heroleg26_isaac_check/generated/heroleg26_obj.urdf`：由现有准备工具生成的 Isaac Gym OBJ 版；7 个网格都保留全部三角面。这是可重新生成的本机缓存，不纳入 Git。
+
+两份 MuJoCo OBJ 已在 `.gitignore` 中单独允许保存，避免克隆后检查入口缺少资源。物理属性来自新导出，不能将旧版的质量、零位、转轴或检查报告沿用到此版本。
+
+## 新导出的已知定义
+
+- 总质量：约 **13.38048145 kg**，直接汇总新 URDF 的惯性质量。
+- J1、J3：`continuous`，源文件未提供 effort/velocity。
+- 左右 J2：`revolute`，均为 `[-0.41538836197465, 0.872664625997165] rad`；源文件给出 effort=30、velocity=1000。
+- 上述电机数值仅作为源文件保留；独立训练任务已接入 24V 参考持续输出配置，运行时覆盖 SDK 电机属性，详见 [ACTUATORS.md](ACTUATORS.md)。实际电压范围内的输出能力仍待标定。
+- 车体坐标已随重新导出变化：前方为 +X，左侧为 +Y，上方为 +Z。依据为车体质量、惯量与质心在原坐标到新坐标的 -90° 水平旋转关系，并结合两侧髋关节位置核对。
+- 用户已确认训练默认站姿：两侧 J1=−10°、J2=+40°，轮关节为 0°；见 [CALIBRATION.md](CALIBRATION.md)。独立检查工具仍从 URDF 零位启动。
+
+## 检查入口
+
+```bash
+source /home/mcsw/RL_infantry/.venv-mujoco/bin/activate
+python -E /home/mcsw/RL_infantry/RM-wheelleg-rl/heroleg26_sim/tools/inspect_model.py
 ```
 
-## 本次改动
+静态入口不积分动力学、不加载 ONNX，也不回写源文件。按键见 [INSPECTION.md](INSPECTION.md)。训练坐标及运动学适配见 [CALIBRATION.md](CALIBRATION.md)，通道对应见 [JOINT_MAPPING.md](JOINT_MAPPING.md)。
 
-- 将原始 `urdf/2.SLDASM.urdf` 复制为 `urdf/heroleg26.urdf`。
-- 将全部 14 处网格引用从 `package://2.SLDASM/meshes/...` 改为 `../meshes/...`，按 URDF 文件所在目录解析。
-- 网格使用真实副本，不是软链接；移动整个目录时无需依赖原始目录。
-- 保留机器人内部名称 `2.SLDASM`，所有连杆、关节、质量、惯量、轴向、零位、限位和颜色保持原值。
-- 没有复制旧 ROS 包的 package.xml、CMakeLists.txt 和 launch 文件，本目录是独立模型资源，不是已配置的 ROS 包。
+## 验证记录
 
-## 已检查
+- `resource_manifest.json`：当前源 URDF、7 个网格的路径和哈希。
+- `mesh_preparation_report.json`：新主车体外观简化记录。
+- `collision_geometry_check.json`：所有 STL 三角面到 OBJ 的逐项验证。
+- `physics_preservation_check.json`：新模型的全分辨率基线与外观简化版，MuJoCo 物理数组和 7 个碰撞网格一致。
+- `model_replacement_report.json`：导入来源、新关节定义、坐标转换依据和检查姿态。
 
-14 处网格引用均指向本目录内存在的文件；7 个 STL 副本与源文件哈希一致；URDF 除网格路径外结构完全一致；原始目录全部文件哈希未改变。
-
-## 尚未完成
-
-本次只整理资源，不代表已经能直接在 MuJoCo 或 Isaac Gym 中运行。主车体 STL 仍保留原始约 209 万个三角面，已知超出本机 MuJoCo 3.2.7 的 STL 读取面数上限。原始版本仍未减面；本次另增加仅简化外观的版本，详见下节。未制作近似碰撞几何、补充电机参数或生成正式 MJCF。
-
-MuJoCo 的 URDF 导入还需要明确配置资源路径解析，例如转换时设置合适的 meshdir/strippath；不能假定所有工具都按相同规则解析相对路径。后续适配会在转换入口处理该问题。
-
-下一步可处理过大的车体网格并准备碰撞模型，再检查关节方向与零位。后续仿真修改优先在本目录进行。
-
-
-## 仅简化外观的可选版本（物理参数保留）
-
-新增 `urdf/heroleg26_visual.urdf`，原有 `urdf/heroleg26.urdf` 保留。新版本只有主车体的两处资源引用不同：
-
-- visual → `../meshes/visual/base_link_visual.obj`：显示网格由 2,091,770 面减至 104,588 面。细小外观细节可能有变化。
-- collision → `../meshes/collision/base_link_full.obj`：全分辨率碰撞网格，从 STL 转为 OBJ；保留全部 2,091,770 个三角面和原始坐标，绕过 MuJoCo 3.2.7 的 STL 读取面数限制。
-
-其余六个连杆的外观与碰撞资源保持原值。所有质量、质心、惯量、关节类型/坐标/转轴/零位、限位、effort、velocity、颜色及比例保持原值，没有根据简化外观重算任何物理量。尤其原有 effort/velocity=0 的未配置状态也保留，后续仍需另行适配训练。
-
-### 已完成的保留性检查
-
-1. 新 URDF 除主车体 visual/collision 的文件引用外，与基线 URDF 数据完全一致。
-2. 7 个原始 STL、基线 URDF、源导出 URDF 的 SHA-256 与之前保存值一致。
-3. 全分辨率碰撞 OBJ 逐三角面与 STL 对比，所有顶点在原始 float32 精度下完全一致。
-4. MuJoCo 3.2.7 中，对全分辨率基线与简化外观版本进行编译对比：body_mass/body_inertia/质心/关节参数等数组完全一致，7 个碰撞几何及其编译后的网格顶点完全一致。
-
-编译对比中的基线使用同一份全分辨率 OBJ 替代超出读取上限的 base STL；两边均在内存中添加相同的临时浮动根节点并设置相同资源解析参数，仅用于检查，未写入正式 URDF。此检查不是 Isaac Gym 验证或行走/跳跃策略测试。真实可用接触面仍由仿真器的网格碰撞处理方式决定，本次未调整这些设置。
-
-检查报告：`mesh_preparation_report.json`、`collision_geometry_check.json`、`physics_preservation_check.json`。
-
-此方案减轻显示网格，碰撞仍使用精细全分辨率几何，因此不承诺碰撞计算显著加速。为遵守物理量保留要求，没有替换成大盒子、圆柱或凸分解近似模型。
-
-
-## 独立模型检查入口
-
-新增 `tools/inspect_model.py`，支持选择六个关节、小角度增减、回零、关节轴及碰撞外形显示。使用原生 MuJoCo 侧栏，静态检查不积分动力学。启动和按键见 [INSPECTION.md](INSPECTION.md)。
+这些记录只验证本次资源替换、静态导入与运动学，不表示已完成电机标定、Isaac Gym 动力学或训练验证。当前训练中涉及的接触设置、控制增益、动作范围等仍需审查。

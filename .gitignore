@@ -164,3 +164,7 @@ mujoco/python_tools/*tuixiong*.py
 # YAML / JSON / CSV
 # PNG训练曲线
 # ==================================================
+
+# Current standalone MuJoCo visual/collision meshes are runtime assets.
+!heroleg26_sim/meshes/visual/base_link_visual.obj
+!heroleg26_sim/meshes/collision/base_link_full.obj

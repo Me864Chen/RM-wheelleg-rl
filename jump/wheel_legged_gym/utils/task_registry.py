@@ -100,6 +100,15 @@ class TaskRegistry:
                 + "{}_config.py".format(name),
             ),
         ]
+        save_items.extend([
+            os.path.join(WHEEL_LEGGED_GYM_ROOT_DIR, "wheel_legged_gym/utils/joint_mapping.py"),
+            os.path.join(WHEEL_LEGGED_GYM_ROOT_DIR, "wheel_legged_gym/utils/robot_kinematics.py"),
+            os.path.join(WHEEL_LEGGED_GYM_ROOT_DIR, "wheel_legged_gym/utils/motor_limits.py"),
+        ])
+        if name == "heroleg26":
+            save_items.append(os.path.join(
+                WHEEL_LEGGED_GYM_ENVS_DIR, "wheel_legged/wheel_legged_config.py"
+            ))
         py_root = os.path.join(
             WHEEL_LEGGED_GYM_ENVS_DIR + "/{}/".format(name) + "{}.py".format(name),
         )

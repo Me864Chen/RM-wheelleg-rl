@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 2.8.3)
 
-project(2.SLDASM)
+project(4.SLDASM)
 
 find_package(catkin REQUIRED)
 

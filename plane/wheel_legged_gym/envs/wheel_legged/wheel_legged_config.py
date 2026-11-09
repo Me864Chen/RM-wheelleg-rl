@@ -37,33 +37,40 @@ from wheel_legged_gym.envs.base.legged_robot_config import (
 class WheelLeggedCfg(LeggedRobotCfg):
 
     class init_state(LeggedRobotCfg.init_state):
-        # pos = [0.0, 0.0, 0.1]  # x,y,z [m]
-        # default_joint_angles = { "lf0_Joint": -0.23, 
-        #                         "lf1_Joint": -0.65, 
-        #                         "l_wheel_Joint": 0.0, 
-        #                         "rf0_Joint": 0.23, 
-        #                         "rf1_Joint": 0.65, 
-        #                         "r_wheel_Joint": 0.0, 
-        #                         }
         pos = [0.0, 0.0, 0.1]  # x,y,z [m]
-        default_joint_angles = { "lf0_Joint": 0.2, 
-                                "lf1_Joint": 0.4, 
-                                "l_wheel_Joint": 0.0, 
-                                "rf0_Joint": -0.2, 
-                                "rf1_Joint": -0.4, 
-                                "r_wheel_Joint": 0.0, 
-                                }
+        # Original-asset pose; the confirmed new-robot pose is in Heroleg26Cfg.
+        default_joint_angles = {
+            "RJ1": 0.2,
+            "RJ2": 0.4,
+            "RJ3": 0.0,
+            "LJ1": -0.2,
+            "LJ2": -0.4,
+            "LJ3": 0.0,
+        }
 
 
     class control(LeggedRobotCfg.control):
         pos_action_scale = 0.5
         vel_action_scale = 10.0
         # PD Drive parameters:
-        stiffness = {"f0": 20.0, "f1": 20.0, "wheel": 0.0}
-        damping = {"f0": 1.0, "f1": 1.0, "wheel": 0.2}
+        stiffness = {"RJ1": 20.0, "RJ2": 20.0, "RJ3": 0.0,
+                     "LJ1": 20.0, "LJ2": 20.0, "LJ3": 0.0}
+        damping = {"RJ1": 1.0, "RJ2": 1.0, "RJ3": 0.2,
+                   "LJ1": 1.0, "LJ2": 1.0, "LJ3": 0.2}
 
 
     class asset(LeggedRobotCfg.asset):
+        # Original left channels -> RJ chain; original right channels -> LJ chain.
+        # Resolve by name after loading; never assume Isaac Gym's DOF enumeration.
+        policy_joint_names = ["RJ1", "RJ2", "RJ3", "LJ1", "LJ2", "LJ3"]
+        joint_name_mapping = {
+            "lf0_Joint": "RJ1",
+            "lf1_Joint": "RJ2",
+            "l_wheel_Joint": "RJ3",
+            "rf0_Joint": "LJ1",
+            "rf1_Joint": "LJ2",
+            "r_wheel_Joint": "LJ3",
+        }
 
 
         # file = "{WHEEL_LEGGED_GYM_ROOT_DIR}/resources/robots/infantry_V1/urdf/infantry_V1.urdf"

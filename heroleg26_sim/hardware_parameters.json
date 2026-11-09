@@ -1,0 +1,97 @@
+{
+  "confirmed_by": "user",
+  "confirmation_date": "2026-11-09",
+  "units": {
+    "angle": "rad",
+    "voltage": "V",
+    "torque": "N*m"
+  },
+  "default_joint_angles_rad": {
+    "RJ1": -0.17453292519943295,
+    "RJ2": 0.6981317007977318,
+    "RJ3": 0.0,
+    "LJ1": -0.17453292519943295,
+    "LJ2": 0.6981317007977318,
+    "LJ3": 0.0
+  },
+  "leg_actuators": {
+    "joints": [
+      "RJ1",
+      "RJ2",
+      "LJ1",
+      "LJ2"
+    ],
+    "model": "DM-J8009P-2EC",
+    "actual_supply_voltage_range_V": [
+      19,
+      24
+    ],
+    "motor_output_revolutions_per_joint_revolution": 1.0,
+    "reference_url": "https://www.damiaokeji.com/index.php?c=show&id=137",
+    "reference_product_revision": "V1.1; actual hardware revision not confirmed",
+    "manufacturer_reference_rated_output_torque_Nm": 20.0,
+    "manufacturer_reference_peak_output_torque_Nm": 40.0,
+    "notes": "Manufacturer output-side ratings already include the internal gearbox. Do not apply its ratio again to the confirmed 1:1 output-to-joint transmission. Ratings are reference data, not a measured 19-24 V torque-speed envelope.",
+    "reference_voltage_V": 24,
+    "manufacturer_reference_supported_voltage_range_V": [
+      24,
+      48
+    ],
+    "manufacturer_reference_rated_speed_rpm_at_24V": 100,
+    "manufacturer_reference_no_load_speed_rpm_at_24V": 168,
+    "manufacturer_reference_rated_phase_current_A": 20,
+    "parameter_image_url": "https://www.damiaokeji.com/uploadfile/ueditor/image/202609/178911957223813b.png",
+    "low_voltage_status": "19 V is below the current V1.1 published 24-48 V range; no 19 V performance or undervoltage operation is assumed."
+  },
+  "wheel_actuators": {
+    "joints": [
+      "RJ3",
+      "LJ3"
+    ],
+    "model": "M3508",
+    "rotor_revolutions_per_wheel_revolution": 15.764705882352942,
+    "total_reduction_ratio_numerator": 268,
+    "total_reduction_ratio_denominator": 17,
+    "ratio_scope": "Total rotor-to-wheel ratio, replacing the original total reduction; not an additional stage.",
+    "reference_url": "https://bbs.robomaster.com/wiki/20204847/809954?source=7",
+    "notes": "10 A is a DC-input reference at the original 24 V rated operating point; it is not directly programmed as a C620 phase-current ceiling. Gearbox efficiency and the current/thermal envelope of the modified drive are unmeasured.",
+    "actual_supply_voltage_range_V": [
+      22,
+      24
+    ],
+    "esc_model": "C620",
+    "current_policy": "Use manual rated current; no extra peak-current profile requested.",
+    "reference_voltage_V": 24,
+    "manufacturer_reference_rated_esc_input_current_A": 10,
+    "current_measurement_location": "ESC DC power input; not CAN commanded motor/phase current.",
+    "can_motor_current_limit_A": null,
+    "manufacturer_reference_original_total_ratio": 19.203208556149733,
+    "manufacturer_reference_original_rated_torque_Nm": 3.0,
+    "manufacturer_reference_original_stall_torque_Nm": 4.5,
+    "manufacturer_reference_original_rated_speed_rpm": 469.0,
+    "manufacturer_reference_original_no_load_speed_rpm": 482.0,
+    "estimated_output_at_24V": {
+      "rated_torque_Nm": 2.462823725981621,
+      "rated_speed_rpm": 571.2954545454545,
+      "rated_speed_rad_s": 59.82592010097471,
+      "stall_torque_Nm_reference_only": 3.694235588972431,
+      "no_load_speed_rpm_reference_only": 587.1309362279511,
+      "assumptions": "Same motor and C620 behaviour; unchanged gearbox efficiency. Ratio-only estimates, not measured modified-wheel ratings."
+    }
+  },
+  "runtime_motor_limits_applied": true,
+  "remaining_calibration": [
+    "Validate actual torque-speed/current/thermal envelope, especially legs below 24 V and wheels at 22 V.",
+    "Confirm a hardware current-control interpretation before configuring C620 CAN current limits.",
+    "Validate inherited PD gains and action ranges in a single-robot dynamics test."
+  ],
+  "runtime_profile_status": "Provisional 24 V continuous-output reference, not validated across actual voltage ranges.",
+  "runtime_profile": {
+    "leg_torque_limit_Nm": 20.0,
+    "leg_operating_speed_limit_rad_s": 10.471975511965978,
+    "wheel_torque_limit_Nm": 2.462823725981621,
+    "wheel_operating_speed_limit_rad_s": 59.82592010097471,
+    "short_term_peak_enabled": false,
+    "braking_available_at_overspeed": true
+  }
+}

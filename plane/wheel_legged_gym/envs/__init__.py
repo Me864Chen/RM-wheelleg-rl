@@ -31,6 +31,7 @@
 from wheel_legged_gym import WHEEL_LEGGED_GYM_ROOT_DIR, WHEEL_LEGGED_GYM_ENVS_DIR
 from .base.legged_robot import LeggedRobot
 from .wheel_legged.wheel_legged_config import WheelLeggedCfg, WheelLeggedCfgPPO
+from .heroleg26.heroleg26_config import Heroleg26Cfg, Heroleg26CfgPPO
 
 import os
 
@@ -41,3 +42,7 @@ task_registry.register(
 )
 
 
+
+task_registry.register(
+    "heroleg26", LeggedRobot, Heroleg26Cfg(), Heroleg26CfgPPO()
+)
