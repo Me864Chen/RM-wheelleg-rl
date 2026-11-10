@@ -47,8 +47,11 @@ def load_config(repo, branch):
                (pkg/'envs/wheel_legged/wheel_legged_config.py', 'WheelLeggedCfg'),
                (pkg/'envs/heroleg26/heroleg26_config.py', 'Heroleg26Cfg')]
     fields = {
-        'init_state': ('default_joint_angles', 'rot'),
-        'asset': ('policy_joint_names', 'actuator_limits', 'dof_armature'),
+        'init_state': ('default_joint_angles', 'pos', 'rot'),
+        'asset': ('policy_joint_names', 'actuator_limits', 'dof_armature',
+                  'angular_damping', 'linear_damping', 'max_angular_velocity',
+                  'max_linear_velocity', 'armature', 'thickness', 'self_collisions'),
+        'terrain': ('static_friction', 'dynamic_friction', 'restitution'),
         'control': ('stiffness', 'damping', 'decimation', 'clip_position_targets', 'enforce_operating_speed'),
         'sim': ('dt', 'substeps', 'gravity'),
         'sim.physx': ('solver_type', 'num_position_iterations', 'num_velocity_iterations',

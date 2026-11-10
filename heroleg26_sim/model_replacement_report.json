@@ -120,18 +120,19 @@
     ]
   },
   "inspection_pose": "The independent kinematic inspector starts at all-zero URDF angles; the training standing pose is configured separately.",
-  "nominal_base_height_m": 0.265,
-  "nominal_mesh_clearance_m": 0.00983892896129892,
+  "nominal_base_height_m": 0.334,
+  "nominal_mesh_clearance_m": 0.010473610995155813,
   "source_motor_values_preserved_without_hardware_recalibration": true,
   "default_standing_pose_rad": {
-    "RJ1": -0.17453292519943295,
-    "RJ2": 0.6981317007977318,
+    "RJ1": -0.4363323129985824,
+    "RJ2": 0.3490658503988659,
     "RJ3": 0.0,
-    "LJ1": -0.17453292519943295,
-    "LJ2": 0.6981317007977318,
+    "LJ1": -0.4363323129985824,
+    "LJ2": 0.3490658503988659,
     "LJ3": 0.0
   },
   "default_standing_pose_confirmed_by_user": true,
   "hardware_parameters_file": "hardware_parameters.json",
-  "runtime_actuator_overrides": "Both heroleg26 tasks use a provisional 24 V continuous-output profile; raw URDF effort/velocity remain unchanged. See ACTUATORS.md."
+  "runtime_actuator_overrides": "Both heroleg26 tasks use a provisional 24 V continuous-output profile; raw URDF effort/velocity remain unchanged. See ACTUATORS.md.",
+  "default_standing_pose_update_date": "2026-11-10"
 }

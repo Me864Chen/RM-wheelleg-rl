@@ -11,11 +11,8 @@ from wheel_legged_gym import WHEEL_LEGGED_GYM_ROOT_DIR
 from wheel_legged_gym.envs import *
 from wheel_legged_gym.utils import get_args, export_policy_as_jit, task_registry
 
-try:
-    from pynput import keyboard
-except ImportError:
-    print("Missing dependency: pynput. Please install it with: pip install pynput")
-    raise
+# SSH/headless playback must not import a keyboard backend requiring DISPLAY.
+keyboard = None
 
 
 # --------------------
@@ -157,23 +154,23 @@ def apply_manual_commands(env, env_cfg):
     env.commands[jump_ids, 3] = env_cfg.commands.jump_ramp_heading
 
 
+@torch.no_grad()
 def play(args):
-    global running
+    global running, keyboard
+    running = True
+    listener = None
 
-    print("\n====== Keyboard Control Mode (NO Enter) ======")
-    print("w      : forward")
-    print("s      : backward")
-    print("a      : hold to turn left")
-    print("d      : hold to turn right")
-    print("e      : stop")
-    print("x      : height up")
-    print("c      : height down")
-    print("q/ESC  : quit")
-    print("camera : fixed overview")
-    print("=============================================\n")
-
-    listener = keyboard.Listener(on_press=on_press, on_release=on_release)
-    listener.start()
+    if args.headless:
+        print("Headless playback: policy mean actions, no keyboard or training.")
+    else:
+        from pynput import keyboard as keyboard_backend
+        keyboard = keyboard_backend
+        print("\n====== Keyboard Control Mode (NO Enter) ======")
+        print("w/s: forward/backward; a/d: hold to turn; e: stop")
+        print("x/c: height up/down; q/ESC: quit; camera: fixed overview")
+        print("=============================================\n")
+        listener = keyboard.Listener(on_press=on_press, on_release=on_release)
+        listener.start()
 
     env_cfg, train_cfg = task_registry.get_cfgs(name=args.task)
     env_cfg.env.num_envs = min(env_cfg.env.num_envs, 50)
@@ -189,14 +186,12 @@ def play(args):
     env_cfg.domain_rand.downward_impulse_interval_s = 3
     env_cfg.domain_rand.downward_impulse_vel_range = [2.4, 2.8]
     # env_cfg.domain_rand.vmc_force_events = True
-    env_cfg.terrain.curriculum = True
 
     env, _ = task_registry.make_env(name=args.task, args=args, env_cfg=env_cfg)
     if getattr(env, "viewer", None) is not None:
         env.set_camera(INITIAL_CAMERA_POSITION, INITIAL_CAMERA_LOOK_AT)
 
     apply_manual_commands(env, env_cfg)
-    obs, obs_history = env.get_observations()
 
     train_cfg.runner.resume = True
     ppo_runner, train_cfg = task_registry.make_alg_runner(
@@ -204,6 +199,12 @@ def play(args):
     )
     policy = ppo_runner.get_inference_policy(device=env.device)
     is_sequence_policy = bool(ppo_runner.alg.actor_critic.is_sequence)
+    # Runner construction calls env.reset(); read the corresponding observations.
+    apply_manual_commands(env, env_cfg)
+    obs, obs_history = env.get_observations()
+    env.log_play_failures = args.headless
+    print("Initial root velocity[0] (world vx,vy,vz,wx,wy,wz):",
+          env.root_states[0, 7:13].tolist())
 
     if EXPORT_POLICY:
         path = os.path.join(
@@ -217,15 +218,29 @@ def play(args):
         print("Exported policy to:", path)
 
     i = 0
+    # Two episode horizons give a finite SSH playback (40 s with this task).
+    max_steps = 2 * env.max_episode_length if args.headless else 100000
+    episode_steps = torch.zeros(env.num_envs, dtype=torch.long, device=env.device)
+    reset_count = timeout_count = 0
+    early_resets_by_env = torch.zeros(env.num_envs, dtype=torch.long, device=env.device)
+    longest_interval_s = 0.0
     try:
-        while running and i < 100000:
+        while running and i < max_steps:
             apply_manual_commands(env, env_cfg)
             if is_sequence_policy:
                 actions, _ = policy(obs, obs_history)
             else:
                 actions = policy(obs)
 
-            obs, _, _, _, _, obs_history = env.step(actions)
+            obs, _, _, dones, infos, obs_history = env.step(actions)
+            episode_steps += 1
+            longest_interval_s = max(longest_interval_s, episode_steps.max().item() * env.dt)
+            done = dones.bool()
+            timeouts = infos.get("time_outs", torch.zeros_like(done)).bool()
+            reset_count += int(done.sum().item())
+            timeout_count += int((done & timeouts).sum().item())
+            early_resets_by_env += (done & ~timeouts).long()
+            episode_steps[done] = 0
             apply_manual_commands(env, env_cfg)
 
             if i % 50 == 0:
@@ -236,14 +251,25 @@ def play(args):
                 print(
                     f"[{i}] vz={vz:.3f}, cmd_x={env.commands[0, 0].item():.2f}, "
                     f"cmd_yaw={env.commands[0, 1].item():.3f}, real_yaw={yaw_rate:.3f}, "
+                    f"resets={reset_count}, non_timeout_resets={reset_count - timeout_count}"
                     # f"F_left={left_F:.2f}, F_right={right_F:.2f}"
                 )
             i += 1
+        print(f"Playback completed: {i} action steps per environment, {i * env.dt:.2f} simulated seconds.")
+        print(f"Resets: {reset_count}; timeouts: {timeout_count}; non-timeout resets: {reset_count - timeout_count}.")
+        print(f"Longest observed interval between resets: {longest_interval_s:.2f} s.")
+        print("Non-timeout resets by environment:", early_resets_by_env.tolist())
+        print("No PPO updates were performed; interval length alone does not establish balance.")
     finally:
         try:
-            listener.stop()
+            if listener is not None:
+                listener.stop()
         except Exception:
             pass
+        finally:
+            if getattr(env, "viewer", None) is not None:
+                env.gym.destroy_viewer(env.viewer)
+            env.gym.destroy_sim(env.sim)
 
 
 if __name__ == "__main__":

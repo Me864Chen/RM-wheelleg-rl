@@ -851,6 +851,9 @@ class LeggedRobot(BaseTask):
             env_ids (List[int]): Environemnt ids
         """
         self.dof_pos[env_ids] = self.default_dof_pos[env_ids, :]
+        # With position-difference feedback self.dof_vel is no longer a view
+        # of the SDK state. Reset the authoritative velocity buffer as well.
+        self.dof_state.view(self.num_envs, self.num_dof, 2)[env_ids, :, 1] = 0.0
         self.dof_vel[env_ids] = 0.0
 
         env_ids_int32 = env_ids.to(dtype=torch.int32)

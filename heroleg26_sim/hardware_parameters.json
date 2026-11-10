@@ -7,11 +7,11 @@
     "torque": "N*m"
   },
   "default_joint_angles_rad": {
-    "RJ1": -0.17453292519943295,
-    "RJ2": 0.6981317007977318,
+    "RJ1": -0.4363323129985824,
+    "RJ2": 0.3490658503988659,
     "RJ3": 0.0,
-    "LJ1": -0.17453292519943295,
-    "LJ2": 0.6981317007977318,
+    "LJ1": -0.4363323129985824,
+    "LJ2": 0.3490658503988659,
     "LJ3": 0.0
   },
   "leg_actuators": {
@@ -100,5 +100,6 @@
     "control_decimation": 10,
     "policy_action_period_s": 0.01,
     "validation": "plane fixed-base PD PASS in user-provided server terminal output; jump and ground/free-base dynamics not validated"
-  }
+  },
+  "standing_pose_confirmation_date": "2026-11-10"
 }

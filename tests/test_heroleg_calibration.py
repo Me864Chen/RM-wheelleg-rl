@@ -13,8 +13,8 @@ SOURCE = ROOT / 'heroleg26_sim/urdf/heroleg26.urdf'
 
 class HerolegCalibrationTests(unittest.TestCase):
     def test_confirmed_standing_pose_and_asset_binding(self):
-        expected = torch.tensor([math.radians(-10), math.radians(40), 0.,
-                                 math.radians(-10), math.radians(40), 0.])
+        expected = torch.tensor([math.radians(-25), math.radians(20), 0.,
+                                 math.radians(-25), math.radians(20), 0.])
         for branch in BRANCHES:
             cfg = HEROCFG[branch]
             self.assertEqual(cfg.asset.body_forward_axis, [1., 0., 0.])
@@ -26,14 +26,14 @@ class HerolegCalibrationTests(unittest.TestCase):
             self.assertFalse(cfg.domain_rand.randomize_base_mass)
             self.assertFalse(cfg.domain_rand.randomize_base_com)
             self.assertFalse(cfg.domain_rand.randomize_inertia)
-            self.assertEqual(cfg.init_state.pos, [0., 0., .265])
+            self.assertEqual(cfg.init_state.pos, [0., 0., .334])
             for order in (POLICY, POLICY[3:]+POLICY[:3], list(reversed(POLICY))):
                 env = make_env(branch, order, cfg, SOURCE)
                 torch.testing.assert_close(env.raw_default_dof_pos[env.policy_dof_indices], expected)
                 # Zero policy action holds the exact confirmed native joint pose.
                 torch.testing.assert_close(env._compute_torques(torch.zeros(2, 6)), torch.zeros(2, 6))
                 env._update_leg_kinematics()
-                self.assertTrue(torch.all((env.L0 > .197) & (env.L0 < .199)))
+                self.assertTrue(torch.all((env.L0 > .265) & (env.L0 < .267)))
                 torch.testing.assert_close(env.L0[:, 0], env.L0[:, 1], atol=1e-6, rtol=0.)
                 # CAD yaw -1.5708 (rather than -pi/2) projects the opposite
                 # lateral offsets slightly differently: about 1.7e-6 rad here.
@@ -75,7 +75,7 @@ class HerolegCalibrationTests(unittest.TestCase):
             spec.loader.exec_module(module)
             cfg = HEROCFG[branch]()
             module.BaseConfig.init_member_classes(cfg)
-            self.assertEqual(cfg.init_state.default_joint_angles['RJ2'], math.radians(40))
+            self.assertEqual(cfg.init_state.default_joint_angles['RJ2'], math.radians(20))
             self.assertEqual(cfg.asset.body_forward_axis, [1., 0., 0.])
             self.assertFalse(cfg.domain_rand.randomize_default_dof_pos)
 
@@ -129,7 +129,7 @@ class HerolegCalibrationTests(unittest.TestCase):
         samples = np.random.default_rng(26).uniform(-1., 1., (100, 4))
         # Sample revolute knees only inside the new source limits.
         samples[:, [1, 3]] = (samples[:, [1, 3]] + 1.) / 2. * (0.872664625997165 + 0.41538836197465) - 0.41538836197465
-        samples[0] = [math.radians(-10), math.radians(40), math.radians(-10), math.radians(40)]
+        samples[0] = [math.radians(-25), math.radians(20), math.radians(-25), math.radians(20)]
         for branch in BRANCHES:
             env = make_env(branch, POLICY[3:]+POLICY[:3], HEROCFG[branch], SOURCE)
             max_error = 0.

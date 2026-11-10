@@ -1,6 +1,7 @@
 """Current 4.SLDASM export; confirmed standing pose, +X-forward body frame.
 
 Continuous actuator limits use a provisional 24 V reference; PD gains remain uncalibrated.
+Initial training stage: stationary balance through the standard scripts/train.py.
 """
 from wheel_legged_gym.envs.wheel_legged.wheel_legged_config import (
     WheelLeggedCfg, WheelLeggedCfgPPO,
@@ -8,16 +9,39 @@ from wheel_legged_gym.envs.wheel_legged.wheel_legged_config import (
 
 
 class Heroleg26Cfg(WheelLeggedCfg):
+    class env(WheelLeggedCfg.env):
+        num_envs = 256
+        episode_length_s = 20.0
+        # Existing termination logic requires consecutive failing action steps.
+        # At 100 Hz this resets after about 50-60 ms of base contact >10 N.
+        # This is a balance-training rule, not a mechanical parameter.
+        fail_to_terminal_time_s = 0.05
+
+    class terrain(WheelLeggedCfg.terrain):
+        mesh_type = "plane"
+        curriculum = False
+
+    class commands(WheelLeggedCfg.commands):
+        # Learn stationary balance before expanding the motion-command range.
+        curriculum = False
+
+        class ranges(WheelLeggedCfg.commands.ranges):
+            lin_vel_x = [0.0, 0.0]
+            ang_vel_yaw = [0.0, 0.0]
+            # Observation placeholder only; height rewards are disabled below.
+            # The spawn height is not a calibrated loaded standing-height target.
+            height = [0.334, 0.334]
+
     class init_state(WheelLeggedCfg.init_state):
         # New CAD body frame: +X nose, +Y left, +Z up.
         rot = [0., 0., 0., 1.]  # xyzw
         # About 10 mm collision-mesh clearance at the confirmed standing pose.
-        pos = [0., 0., 0.265]
-        # User-confirmed URDF angles: both J1=-10 deg, both J2=+40 deg.
+        pos = [0., 0., 0.334]
+        # User-confirmed URDF angles: both J1=-25 deg, both J2=+20 deg.
         # Values below are radians; wheel zero angles remain unchanged.
         default_joint_angles = {
-            "RJ1": -0.17453292519943295, "RJ2": 0.6981317007977318, "RJ3": 0.,
-            "LJ1": -0.17453292519943295, "LJ2": 0.6981317007977318, "LJ3": 0.,
+            "RJ1": -0.4363323129985824, "RJ2": 0.3490658503988659, "RJ3": 0.,
+            "LJ1": -0.4363323129985824, "LJ2": 0.3490658503988659, "LJ3": 0.,
         }
 
     class asset(WheelLeggedCfg.asset):
@@ -32,6 +56,9 @@ class Heroleg26Cfg(WheelLeggedCfg):
         l1 = 0.210
         l2 = 0.250
         foot_name = "_Link3"  # L_Link3 and R_Link3
+        # A parked base must not count as successful wheel-supported standing.
+        penalize_contacts_on = ["base_link"]
+        terminate_after_contacts_on = ["base_link"]
         # Provisional 24 V continuous-output profile; see ACTUATORS.md.
         # Legs: 20 Nm, 100 rpm. Wheels: C620 3 Nm/469 rpm reference,
         # converted from 3591/187 to the total ratio 268/17.
@@ -60,14 +87,43 @@ class Heroleg26Cfg(WheelLeggedCfg):
         enforce_operating_speed = True
 
     class domain_rand(WheelLeggedCfg.domain_rand):
-        # Keep the confirmed pose and nominal CAD mass/inertia during adaptation.
+        # Start with the same nominal setup as the successful PPO smoke run.
         randomize_default_dof_pos = False
         randomize_base_mass = False
         randomize_base_com = False
         randomize_inertia = False
+        randomize_friction = False
+        randomize_restitution = False
+        randomize_Kp = False
+        randomize_Kd = False
+        randomize_motor_torque = False
+        randomize_action_delay = False
+        push_robots = False
+        # The original environment still samples root velocity on reset.
+
+    class noise(WheelLeggedCfg.noise):
+        add_noise = False
+
+    class normalization(WheelLeggedCfg.normalization):
+        clip_actions = 1.0
+
+    class rewards(WheelLeggedCfg.rewards):
+        class scales(WheelLeggedCfg.rewards.scales):
+            # Avoid inheriting the original robot's 0.10-0.20 m height objective.
+            base_height = 0.0
+            base_height_enhance = 0.0
 
 
 class Heroleg26CfgPPO(WheelLeggedCfgPPO):
+    class policy(WheelLeggedCfgPPO.policy):
+        init_noise_std = 0.2
+
+    class algorithm(WheelLeggedCfgPPO.algorithm):
+        learning_rate = 3.0e-4
+
     class runner(WheelLeggedCfgPPO.runner):
         experiment_name = "heroleg26_plane"
+        run_name = "balance_stage1"
+        max_iterations = 1000
+        save_interval = 100
         resume = False

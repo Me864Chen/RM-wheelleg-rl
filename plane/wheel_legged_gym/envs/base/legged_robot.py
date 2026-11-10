@@ -219,6 +219,22 @@ class LeggedRobot(BaseTask):
             | self.time_out_buf
             | self.edge_reset_buf
         )
+        if getattr(self, "log_play_failures", False):
+            # Inspect the terminal physical state before reset_idx replaces it.
+            failed = (self.reset_buf & ~self.time_out_buf).nonzero(as_tuple=False).flatten()
+            for env_id in failed.tolist():
+                tilt_deg = torch.acos(torch.clamp(
+                    -self.projected_gravity[env_id, 2], -1.0, 1.0
+                )).item() * 180.0 / np.pi
+                contacts = self.contact_forces[env_id, self.termination_contact_indices, :]
+                force = torch.norm(contacts, dim=-1).max().item() if contacts.numel() else 0.0
+                knees = {name: round(self.dof_pos[env_id, self.dof_names.index(name)].item()
+                                      * 180.0 / np.pi, 2)
+                         for name in ("RJ2", "LJ2") if name in self.dof_names}
+                print(f"[FAIL env={env_id}] t={self.episode_length_buf[env_id].item() * self.dt:.2f}s "
+                      f"tilt={tilt_deg:.2f}deg base_contact={force:.2f}N "
+                      f"base_z={self.root_states[env_id, 2].item():.3f}m knees_deg={knees}",
+                      flush=True)
 
     def reset_idx(self, env_ids):
         """Reset some environments.
@@ -249,6 +265,26 @@ class LeggedRobot(BaseTask):
         self._reset_root_states(env_ids)
 
         self._resample_commands(env_ids)
+
+        # Reset observations must describe the newly written physical state.
+        # These derived tensors otherwise still contain the terminal state's
+        # tilt/velocity and contaminate the first observation and its history.
+        reset_quat = self.root_states[env_ids, 3:7]
+        self.base_quat[env_ids] = reset_quat
+        self.base_lin_vel[env_ids] = self._body_to_policy(quat_rotate_inverse(
+            reset_quat, self.root_states[env_ids, 7:10]
+        ))
+        self.base_ang_vel[env_ids] = self._body_to_policy(quat_rotate_inverse(
+            reset_quat, self.root_states[env_ids, 10:13]
+        ))
+        self.projected_gravity[env_ids] = self._body_to_policy(quat_rotate_inverse(
+            reset_quat, self.gravity_vec[env_ids]
+        ))
+        self._update_leg_kinematics()
+        self.actions[env_ids] = 0.0
+        self.action_fifo[env_ids] = 0.0
+        self.dof_acc[env_ids] = 0.0
+        self.torques[env_ids] = 0.0
 
         # reset buffers
         self.last_actions[env_ids] = 0.0
@@ -866,6 +902,9 @@ class LeggedRobot(BaseTask):
             env_ids (List[int]): Environemnt ids
         """
         self.dof_pos[env_ids] = self.default_dof_pos[env_ids, :]
+        # With position-difference feedback self.dof_vel is no longer a view
+        # of the SDK state. Reset the authoritative velocity buffer as well.
+        self.dof_state.view(self.num_envs, self.num_dof, 2)[env_ids, :, 1] = 0.0
         self.dof_vel[env_ids] = 0.0
 
         env_ids_int32 = env_ids.to(dtype=torch.int32)
